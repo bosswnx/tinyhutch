@@ -61,7 +61,7 @@ make snapshot # 本地 GoReleaser 试构建，输出到 .goreleaser/
 
 ## 发布
 
-发布遵循语义化版本（SemVer），以 Git tag 为准。推送 `v*` tag 后，GitHub Actions 会自动运行 GoReleaser，构建 Unix 二进制，并把 `.tar.gz` 压缩包、原始可执行文件和 `SHA256SUMS` 一起发布到 GitHub Releases。
+发布遵循语义化版本（SemVer），以 Git tag 为准。推送 `v*` tag 后，GitHub Actions 会自动运行 GoReleaser，构建 Unix 可执行文件，并直接和 `SHA256SUMS` 一起发布到 GitHub Releases。
 
 ```bash
 git tag -a v0.1.1 -m "v0.1.1"

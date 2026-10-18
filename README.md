@@ -61,7 +61,7 @@ make snapshot # local GoReleaser dry run into .goreleaser/
 
 ## Release
 
-Releases follow Semantic Versioning and are driven by Git tags. Pushing a `v*` tag runs GoReleaser in GitHub Actions, builds the Unix binaries, and publishes both `.tar.gz` archives and raw executables plus `SHA256SUMS` to GitHub Releases.
+Releases follow Semantic Versioning and are driven by Git tags. Pushing a `v*` tag runs GoReleaser in GitHub Actions, builds the Unix executables, and publishes them directly together with `SHA256SUMS` on GitHub Releases.
 
 ```bash
 git tag -a v0.1.1 -m "v0.1.1"
