@@ -224,7 +224,7 @@ func TestAdminWriteFlow(t *testing.T) {
 }
 
 func TestPathLockAndReadOnlyPassword(t *testing.T) {
-	e := newTestEnv(t, []Rule{{Path: "/private/**", Mode: modeLock, Password: "s3cret"}})
+	e := newTestEnv(t, []Rule{{Path: "/private", Mode: modeLock, Password: "s3cret"}})
 	writeTestFile(t, filepath.Join(e.dir, "private", "secret.txt"), "top secret")
 
 	resp, _ := e.anon("GET", "/api/list?path=/private", "")
@@ -263,8 +263,8 @@ func TestPathLockAndReadOnlyPassword(t *testing.T) {
 
 func TestRuleScopedUnlock(t *testing.T) {
 	e := newTestEnv(t, []Rule{
-		{Path: "/a/**", Mode: modeLock, Password: "same"},
-		{Path: "/b/**", Mode: modeLock, Password: "same"},
+		{Path: "/a", Mode: modeLock, Password: "same"},
+		{Path: "/b", Mode: modeLock, Password: "same"},
 	})
 	writeTestFile(t, filepath.Join(e.dir, "a", "x.txt"), "a")
 	writeTestFile(t, filepath.Join(e.dir, "b", "x.txt"), "b")
@@ -286,20 +286,85 @@ func TestRuleScopedUnlock(t *testing.T) {
 	}
 }
 
-func TestPublicRuleResetsLock(t *testing.T) {
-	e := newTestEnv(t, []Rule{
-		{Path: "/private/**", Mode: modeLock, Password: "p"},
-		{Path: "/private/open/**", Mode: modePublic},
-	})
-	writeTestFile(t, filepath.Join(e.dir, "private", "open", "x.txt"), "open")
+func TestDirectoryLockCoversSubtree(t *testing.T) {
+	e := newTestEnv(t, []Rule{{Path: "/private", Mode: modeLock, Password: "p"}})
+	writeTestFile(t, filepath.Join(e.dir, "private", "sub", "x.txt"), "inherited")
 
+	// The whole subtree is closed to anonymous visitors.
 	if resp, _ := e.anon("GET", "/api/list?path=/private", ""); resp.StatusCode != 401 {
-		t.Fatal("parent should stay locked")
+		t.Fatal("directory should be locked")
 	}
-	resp, body := e.anon("GET", "/api/download?path=/private/open/x.txt", "")
-	if resp.StatusCode != 200 || string(body) != "open" {
-		t.Fatalf("public exception: %d %q", resp.StatusCode, body)
+	if resp, _ := e.anon("GET", "/api/download?path=/private/sub/x.txt", ""); resp.StatusCode != 401 {
+		t.Fatal("nested file should be locked by its parent directory")
 	}
+
+	// The admin sees the lock icon on every child, and the lock is inherited.
+	e.loginAdmin()
+	_, body := e.do(e.client, "GET", "/api/list?path=/private", "")
+	var listing struct {
+		Entries []listEntry `json:"entries"`
+	}
+	if err := json.Unmarshal(body, &listing); err != nil {
+		t.Fatal(err)
+	}
+	if len(listing.Entries) != 1 {
+		t.Fatalf("entries = %+v", listing.Entries)
+	}
+	child := listing.Entries[0]
+	if !child.Protected || !child.Inherited || child.Locked {
+		t.Fatalf("admin child lock flags = %+v", child)
+	}
+
+	// After unlocking the directory the subtree is readable, but the badge and
+	// inherited flag stay so the per-file lock control remains disabled.
+	reader := newClient()
+	if resp, body := e.unlock(reader, "/private", "p"); resp.StatusCode != 200 {
+		t.Fatalf("unlock: %d %s", resp.StatusCode, body)
+	}
+	_, body = e.do(reader, "GET", "/api/list?path=/private", "")
+	if err := json.Unmarshal(body, &listing); err != nil {
+		t.Fatal(err)
+	}
+	child = listing.Entries[0]
+	if !child.Protected || !child.Inherited || child.Locked {
+		t.Fatalf("unlocked child flags = %+v", child)
+	}
+	if resp, body := e.do(reader, "GET", "/api/list?path=/private/sub", ""); resp.StatusCode != 200 {
+		t.Fatalf("nested list after unlock: %d %s", resp.StatusCode, body)
+	}
+	if resp, body := e.do(reader, "GET", "/api/download?path=/private/sub/x.txt", ""); resp.StatusCode != 200 || string(body) != "inherited" {
+		t.Fatalf("nested download after unlock: %d %q", resp.StatusCode, body)
+	}
+}
+
+func TestAdminRulesRejectOverlap(t *testing.T) {
+	e := newTestEnv(t, []Rule{{Path: "/a", Mode: modeLock, Password: "p"}})
+	e.loginAdmin()
+
+	payload := `{"rules":[{"path":"/a","mode":"lock","password":"p"},{"path":"/a/b","password":"q"}]}`
+	resp, body := e.do(e.client, "PUT", "/api/admin/rules", payload)
+	if resp.StatusCode != 400 {
+		t.Fatalf("overlap: %d %s", resp.StatusCode, body)
+	}
+	var out struct {
+		Code string `json:"code"`
+	}
+	_ = json.Unmarshal(body, &out)
+	if out.Code != "rules_overlap" {
+		t.Fatalf("code = %q, body = %s", out.Code, body)
+	}
+
+	// A duplicate path is also an overlap.
+	payload = `{"rules":[{"path":"/a","password":"p"},{"path":"/a/","password":"q"}]}`
+	if resp, body := e.do(e.client, "PUT", "/api/admin/rules", payload); resp.StatusCode != 400 {
+		t.Fatalf("duplicate: %d %s", resp.StatusCode, body)
+	}
+
+	// Non-overlapping paths still save.
+	e.setRules(
+		Rule{Path: "/a", Mode: modeLock, Password: "p"},
+		Rule{Path: "/b", Mode: modeLock, Password: "q"},
+	)
 }
 
 func TestAdminPasswordChangeInvalidatesOthers(t *testing.T) {
@@ -440,6 +505,31 @@ func TestMoveValidationAndRuleSync(t *testing.T) {
 	cfg, _ := e.cm.Current()
 	if len(cfg.Rules) != 1 || cfg.Rules[0].Path != "/dest/a.txt" {
 		t.Fatalf("rule did not follow move: %+v", cfg.Rules)
+	}
+}
+
+func TestMoveRejectsRuleOverlap(t *testing.T) {
+	e := newTestEnv(t, []Rule{
+		{Path: "/sub", Mode: modeLock, Password: "p"},
+		{Path: "/dest", Mode: modeLock, Password: "q"},
+	})
+	e.loginAdmin()
+	if resp, body := e.do(e.client, "POST", "/api/mkdir", `{"path":"/","name":"dest"}`); resp.StatusCode != 201 {
+		t.Fatalf("mkdir: %d %s", resp.StatusCode, body)
+	}
+	resp, body := e.do(e.client, "POST", "/api/move", `{"from":"/sub","to":"/dest/sub"}`)
+	if resp.StatusCode != 409 {
+		t.Fatalf("move into locked dir: %d %s", resp.StatusCode, body)
+	}
+	var out struct {
+		Code string `json:"code"`
+	}
+	_ = json.Unmarshal(body, &out)
+	if out.Code != "rules_move_conflict" {
+		t.Fatalf("code = %q, body = %s", out.Code, body)
+	}
+	if _, err := os.Stat(filepath.Join(e.dir, "sub", "a.txt")); err != nil {
+		t.Fatalf("source should stay in place: %v", err)
 	}
 }
 
@@ -617,7 +707,7 @@ func TestStatSelection(t *testing.T) {
 }
 
 func TestDownloadWithPassword(t *testing.T) {
-	e := newTestEnv(t, []Rule{{Path: "/private/**", Mode: modeLock, Password: "pw"}})
+	e := newTestEnv(t, []Rule{{Path: "/private", Mode: modeLock, Password: "pw"}})
 	writeTestFile(t, filepath.Join(e.dir, "private", "x.txt"), "secret")
 
 	for _, u := range []string{
@@ -640,7 +730,7 @@ func TestDownloadWithPassword(t *testing.T) {
 }
 
 func TestDownloadPasswordRateLimit(t *testing.T) {
-	e := newTestEnv(t, []Rule{{Path: "/private/**", Mode: modeLock, Password: "pw"}})
+	e := newTestEnv(t, []Rule{{Path: "/private", Mode: modeLock, Password: "pw"}})
 	writeTestFile(t, filepath.Join(e.dir, "private", "x.txt"), "secret")
 
 	for i := 0; i < limiterMaxFail-1; i++ {
@@ -658,10 +748,7 @@ func TestDownloadPasswordRateLimit(t *testing.T) {
 }
 
 func TestRulePasswordForLink(t *testing.T) {
-	e := newTestEnv(t, []Rule{
-		{Path: "/private/**", Mode: modeLock, Password: "parent"},
-		{Path: "/private/secret.txt", Mode: modeLock, Password: "child"},
-	})
+	e := newTestEnv(t, []Rule{{Path: "/private", Mode: modeLock, Password: "parent"}})
 	writeTestFile(t, filepath.Join(e.dir, "private", "x.txt"), "x")
 	writeTestFile(t, filepath.Join(e.dir, "private", "secret.txt"), "s")
 
@@ -694,14 +781,8 @@ func TestRulePasswordForLink(t *testing.T) {
 	if code, pw := get(reader, "/private/x.txt"); code != 200 || pw != "parent" {
 		t.Fatalf("unlocked parent: %d %q", code, pw)
 	}
-	if code, _ := get(reader, "/private/secret.txt"); code != 401 {
-		t.Fatalf("more specific lock: %d, want 401", code)
-	}
-	if resp, body := e.unlock(reader, "/private/secret.txt", "child"); resp.StatusCode != 200 {
-		t.Fatalf("unlock child: %d %s", resp.StatusCode, body)
-	}
-	if code, pw := get(reader, "/private/secret.txt"); code != 200 || pw != "child" {
-		t.Fatalf("unlocked child: %d %q", code, pw)
+	if code, pw := get(reader, "/private/secret.txt"); code != 200 || pw != "parent" {
+		t.Fatalf("inherited password: %d %q", code, pw)
 	}
 	if code, _ := get(reader, "/nope.txt"); code != 404 {
 		t.Fatalf("missing: %d, want 404", code)
@@ -712,7 +793,7 @@ func TestRulePasswordForLink(t *testing.T) {
 }
 
 func TestRulePasswordChangeRelocks(t *testing.T) {
-	e := newTestEnv(t, []Rule{{Path: "/sub/**", Mode: modeLock, Password: "p1"}})
+	e := newTestEnv(t, []Rule{{Path: "/sub", Mode: modeLock, Password: "p1"}})
 	c := newClient()
 	if resp, body := e.unlock(c, "/sub", "p1"); resp.StatusCode != 200 {
 		t.Fatalf("unlock: %d %s", resp.StatusCode, body)
@@ -720,7 +801,7 @@ func TestRulePasswordChangeRelocks(t *testing.T) {
 	if resp, _ := e.do(c, "GET", "/api/list?path=/sub", ""); resp.StatusCode != 200 {
 		t.Fatal("should be unlocked")
 	}
-	e.setRules(Rule{Path: "/sub/**", Mode: modeLock, Password: "p2"})
+	e.setRules(Rule{Path: "/sub", Mode: modeLock, Password: "p2"})
 	if resp, _ := e.do(c, "GET", "/api/list?path=/sub", ""); resp.StatusCode != 401 {
 		t.Fatal("old unlock must not survive a password change")
 	}
@@ -827,7 +908,7 @@ func TestRateLimit(t *testing.T) {
 }
 
 func TestRuleTestAPI(t *testing.T) {
-	e := newTestEnv(t, []Rule{{Path: "/sub/**", Mode: modeLock, Password: "p"}})
+	e := newTestEnv(t, []Rule{{Path: "/sub", Mode: modeLock, Password: "p"}})
 	e.loginAdmin()
 	resp, body := e.do(e.client, "POST", "/api/admin/rule-test", `{"path":"/sub/a.txt"}`)
 	if resp.StatusCode != 200 {

@@ -7,35 +7,41 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"regexp"
 	"strings"
 )
 
-// Rule is one entry of the ordered rule list stored in the config file.
+// Rule is one entry of the rule list stored in the config file.
+//
+// A rule locks a single path. Locking a directory also locks everything below
+// it, so rule paths must not overlap (one path cannot be the same as, or
+// contain, another rule path).
 type Rule struct {
 	Path     string `json:"path"`
-	Mode     string `json:"mode"`
+	Mode     string `json:"mode,omitempty"`
 	Password string `json:"password,omitempty"`
 }
 
 const (
-	modeLock   = "lock"
-	modePublic = "public"
+	modeLock = "lock"
+	// modeLegacyPublic is the removed "public" mode. It is dropped while
+	// loading old configs because locks can no longer be cancelled per path.
+	modeLegacyPublic = "public"
 )
+
+var errRuleOverlap = errors.New("rule paths overlap")
 
 type compiledRule struct {
 	pattern string
-	mode    string
 	pass    string
-	id      string // rule ID used by sessions; only meaningful for lock rules
-	re      *regexp.Regexp
+	id      string // rule ID used by sessions
 }
 
-// Effective is the result of evaluating the ordered rules for one path.
+// Effective is the result of evaluating the rules for one path.
 type Effective struct {
 	Password  string // empty = public
 	RuleID    string // empty = no lock rule in effect
 	RuleIndex int    // -1 = no rule matched
+	RulePath  string // path of the rule in effect; empty = public
 }
 
 func (e Effective) Locked() bool { return e.Password != "" }
@@ -103,52 +109,23 @@ func parentOf(rel string) string {
 	return p
 }
 
-var errBadGlob = errors.New("invalid glob pattern")
-
-// compileGlob converts the tiny glob language into a regexp.
-//
-//   - -> [^/]*
-//     **  -> .*   (when followed by "/", matches zero or more whole segments)
-//     ?   -> [^/]
-func compileGlob(pattern string) (*regexp.Regexp, error) {
-	if !strings.HasPrefix(pattern, "/") {
-		return nil, errBadGlob
+// pathContains reports whether child is parent itself or lives below parent.
+// Paths are clean absolute slash paths.
+func pathContains(parent, child string) bool {
+	if parent == child {
+		return true
 	}
-	suffix := ""
-	p := pattern
-	if strings.HasSuffix(p, "/**") {
-		p = strings.TrimSuffix(p, "/**")
-		suffix = "(?:/.*)?"
+	if parent == "/" {
+		return strings.HasPrefix(child, "/")
 	}
-	var b strings.Builder
-	b.WriteByte('^')
-	for i := 0; i < len(p); {
-		switch p[i] {
-		case '*':
-			if i+1 < len(p) && p[i+1] == '*' {
-				i += 2
-				if i < len(p) && p[i] == '/' {
-					b.WriteString("(?:.*/)?")
-					i++
-				} else {
-					b.WriteString(".*")
-				}
-			} else {
-				b.WriteString("[^/]*")
-				i++
-			}
-		case '?':
-			b.WriteString("[^/]")
-			i++
-		default:
-			b.WriteString(regexp.QuoteMeta(p[i : i+1]))
-			i++
-		}
-	}
-	b.WriteString(suffix)
-	b.WriteByte('$')
-	return regexp.Compile(b.String())
+	return strings.HasPrefix(child, parent+"/")
 }
+
+func pathsOverlap(a, b string) bool {
+	return pathContains(a, b) || pathContains(b, a)
+}
+
+func isExactPath(p string) bool { return !strings.ContainsAny(p, "*?") }
 
 func ruleID(secret []byte, rulePath, password string) string {
 	mac := hmac.New(sha256.New, secret)
@@ -158,8 +135,6 @@ func ruleID(secret []byte, rulePath, password string) string {
 	mac.Write([]byte(password))
 	return hex.EncodeToString(mac.Sum(nil))[:16]
 }
-
-func isExactPath(p string) bool { return !strings.ContainsAny(p, "*?") }
 
 func compileRules(rules []Rule, secret []byte) ([]compiledRule, error) {
 	out := make([]compiledRule, 0, len(rules))
@@ -171,55 +146,59 @@ func compileRules(rules []Rule, secret []byte) ([]compiledRule, error) {
 		if abs != r.Path {
 			return nil, fmt.Errorf("规则 #%d: 路径未规范化，应为 %q", i+1, abs)
 		}
-		switch r.Mode {
-		case modeLock:
-			if r.Password == "" {
-				return nil, fmt.Errorf("规则 #%d (%s): lock 必须设置密码", i+1, r.Path)
+		if r.Mode != "" && r.Mode != modeLock {
+			return nil, fmt.Errorf("规则 #%d: 只支持上锁模式", i+1)
+		}
+		if r.Password == "" {
+			return nil, fmt.Errorf("规则 #%d (%s): 请填写密码", i+1, r.Path)
+		}
+		if !isExactPath(abs) {
+			return nil, fmt.Errorf("规则 #%d (%s): 路径不能包含通配符", i+1, r.Path)
+		}
+		for j := range out {
+			if pathsOverlap(out[j].pattern, abs) {
+				return nil, fmt.Errorf("%w: 规则 #%d (%s) 与规则 #%d (%s) 重叠，上锁路径不能互相包含",
+					errRuleOverlap, i+1, abs, j+1, out[j].pattern)
 			}
-		case modePublic:
-			if r.Password != "" {
-				return nil, fmt.Errorf("规则 #%d (%s): public 不能设置密码", i+1, r.Path)
-			}
-		default:
-			return nil, fmt.Errorf("规则 #%d: 未知模式 %q", i+1, r.Mode)
 		}
-		re, err := compileGlob(abs)
-		if err != nil {
-			return nil, fmt.Errorf("规则 #%d (%s): %w", i+1, r.Path, err)
-		}
-		cr := compiledRule{pattern: abs, mode: r.Mode, pass: r.Password, re: re}
-		if r.Mode == modeLock {
-			cr.id = ruleID(secret, abs, r.Password)
-		}
-		out = append(out, cr)
+		out = append(out, compiledRule{
+			pattern: abs,
+			pass:    r.Password,
+			id:      ruleID(secret, abs, r.Password),
+		})
 	}
 	return out, nil
 }
 
-// evaluate walks the rules in order; later rules override earlier ones.
+// evaluate finds the lock rule that covers abs. Overlapping rules are rejected
+// at compile time, so at most one rule matches; the longest path wins if a
+// caller ever passes an unvalidated list.
 func evaluate(rules []compiledRule, abs string) Effective {
-	e := Effective{RuleIndex: -1}
+	best := -1
 	for i := range rules {
-		if !rules[i].re.MatchString(abs) {
+		if !pathContains(rules[i].pattern, abs) {
 			continue
 		}
-		switch rules[i].mode {
-		case modeLock:
-			e.Password = rules[i].pass
-			e.RuleID = rules[i].id
-			e.RuleIndex = i
-		case modePublic:
-			e = Effective{RuleIndex: -1}
+		if best < 0 || len(rules[i].pattern) > len(rules[best].pattern) {
+			best = i
 		}
 	}
-	return e
+	if best < 0 {
+		return Effective{RuleIndex: -1}
+	}
+	return Effective{
+		Password:  rules[best].pass,
+		RuleID:    rules[best].id,
+		RuleIndex: best,
+		RulePath:  rules[best].pattern,
+	}
 }
 
 // matchedRuleIndexes is used by the rule tester.
 func matchedRuleIndexes(rules []compiledRule, abs string) []int {
 	var out []int
 	for i := range rules {
-		if rules[i].re.MatchString(abs) {
+		if pathContains(rules[i].pattern, abs) {
 			out = append(out, i)
 		}
 	}

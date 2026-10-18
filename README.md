@@ -11,6 +11,8 @@ TinyFM features:
 - File downloads through links, suitable for scripts.
 - Mobile layout, dark mode, and Chinese/English support.
 
+![img](img.png)
+
 ## Quick start
 
 ```bash

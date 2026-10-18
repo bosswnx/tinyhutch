@@ -349,7 +349,7 @@ function updateSelectionUI() {
     const cb = tr.querySelector('.row-select');
     if (cb) cb.checked = state.selected.has(tr.dataset.path);
     tr.querySelectorAll('.rowbtn').forEach(btn => {
-      btn.disabled = n > 0;
+      btn.disabled = n > 0 || btn.dataset.inherited === '1';
     });
   });
   const all = $('#select-all');
@@ -543,7 +543,7 @@ function renderRow(entry) {
   if (protectedNow) {
     const lock = el('span', 'lockbadge');
     lock.appendChild(icon('lock'));
-    lock.title = t('index.locked_title');
+    lock.title = entry.inherited ? t('index.lock_inherited_title') : t('index.locked_title');
     wrap.appendChild(lock);
   }
   nameTd.appendChild(wrap);
@@ -570,12 +570,16 @@ function renderRow(entry) {
     rn.addEventListener('click', () => renameEntry(entry));
     actions.appendChild(rn);
 
+    const directLock = entry.protected && !entry.inherited;
     const lockBtn = rowAction(
-      entry.protected ? 'unlock' : 'lock',
-      entry.protected ? t('common.unlock') : t('common.lock'),
-      entry.protected ? t('index.unlock_action_title') : t('index.lock_action_title'));
+      directLock ? 'unlock' : 'lock',
+      directLock ? t('common.unlock') : t('common.lock'),
+      entry.inherited
+        ? t('index.lock_inherited_title')
+        : directLock ? t('index.unlock_action_title') : t('index.lock_action_title'));
     lockBtn.classList.add('act-lock');
-    lockBtn.disabled = state.selected.size > 0;
+    if (entry.inherited) lockBtn.dataset.inherited = '1';
+    lockBtn.disabled = state.selected.size > 0 || !!entry.inherited;
     lockBtn.addEventListener('click', () => toggleLock(entry));
     actions.appendChild(lockBtn);
 
@@ -752,12 +756,15 @@ async function deleteEntry(entry) {
 }
 
 async function toggleLock(entry) {
+  if (entry.inherited) {
+    showBanner(t('index.lock_inherited_title'));
+    return;
+  }
   try {
     const cfg = await api('/api/admin/config');
     const abs = absPath(entry);
     const rules = (cfg.rules || []).filter(r => !(isExactRule(r.path) && r.path === abs));
     if (entry.protected) {
-      rules.push({ path: abs, mode: 'public' });
       await saveRules(rules);
       await loadList(state.path, false);
       showBanner(t('index.unlocked_done'), true);

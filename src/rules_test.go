@@ -1,40 +1,9 @@
 package main
 
-import "testing"
-
-func TestCompileGlob(t *testing.T) {
-	cases := []struct {
-		pattern string
-		path    string
-		want    bool
-	}{
-		{"/private/**", "/private", true},
-		{"/private/**", "/private/a.txt", true},
-		{"/private/**", "/private/a/b", true},
-		{"/private/**", "/privatex", false},
-		{"/private/**", "/", false},
-		{"/**/*.zip", "/data.zip", true},
-		{"/**/*.zip", "/a/b.zip", true},
-		{"/**/*.zip", "/a/b.txt", false},
-		{"/a/?/c", "/a/b/c", true},
-		{"/a/?/c", "/a/bb/c", false},
-		{"/a/*.txt", "/a/b.txt", true},
-		{"/a/*.txt", "/a/b/c.txt", false},
-		{"/", "/", true},
-		{"/**", "/a/b", true},
-		{"/**", "/", true},
-		{"/a/[b]", "/a/[b]", true},
-	}
-	for _, c := range cases {
-		re, err := compileGlob(c.pattern)
-		if err != nil {
-			t.Fatalf("compile %q: %v", c.pattern, err)
-		}
-		if got := re.MatchString(c.path); got != c.want {
-			t.Errorf("%q.Match(%q) = %v, want %v", c.pattern, c.path, got, c.want)
-		}
-	}
-}
+import (
+	"errors"
+	"testing"
+)
 
 func TestCleanRelPath(t *testing.T) {
 	ok := map[string]string{
@@ -82,44 +51,55 @@ func TestNormalizeAbsPath(t *testing.T) {
 	}
 }
 
-func TestEvaluateOrder(t *testing.T) {
+func TestEvaluateInheritsDirectoryLock(t *testing.T) {
 	secret := []byte("0123456789abcdef0123456789abcdef")
 	rules, err := compileRules([]Rule{
-		{Path: "/p/**", Mode: modeLock, Password: "one"},
-		{Path: "/p/x/**", Mode: modeLock, Password: "two"},
-		{Path: "/p/x/open/**", Mode: modePublic},
+		{Path: "/p", Mode: modeLock, Password: "one"},
+		{Path: "/x", Password: "two"},
 	}, secret)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if e := evaluate(rules, "/p/a"); e.Password != "one" {
-		t.Fatalf("/p/a password = %q", e.Password)
+	cases := []struct {
+		path string
+		pass string
+		rule string
+	}{
+		{"/p", "one", "/p"},
+		{"/p/a", "one", "/p"},
+		{"/p/a/b", "one", "/p"},
+		{"/pfoo", "", ""},
+		{"/x/a", "two", "/x"},
+		{"/other", "", ""},
+		{"/", "", ""},
 	}
-	if e := evaluate(rules, "/p/x/a"); e.Password != "two" {
-		t.Fatalf("/p/x/a password = %q", e.Password)
+	for _, c := range cases {
+		e := evaluate(rules, c.path)
+		if e.Password != c.pass || e.RulePath != c.rule {
+			t.Errorf("evaluate(%q) = password %q rule %q, want %q / %q",
+				c.path, e.Password, e.RulePath, c.pass, c.rule)
+		}
+		if c.pass == "" && e.RuleIndex != -1 {
+			t.Errorf("evaluate(%q) RuleIndex = %d, want -1", c.path, e.RuleIndex)
+		}
 	}
-	if e := evaluate(rules, "/p/x/open/a"); e.Password != "" {
-		t.Fatalf("/p/x/open/a should be public, got %q", e.Password)
-	}
-	if e := evaluate(rules, "/other"); e.Password != "" {
-		t.Fatalf("/other should be public")
-	}
-	// Same rule -> same ID, so unlocking the directory covers its subtree.
-	if a, b := evaluate(rules, "/p/a"), evaluate(rules, "/p/x"); a.RuleID == b.RuleID {
-		t.Fatalf("different rules must have different IDs")
-	}
+
+	// Unlocking a directory covers its whole subtree.
 	if a, b := evaluate(rules, "/p/a"), evaluate(rules, "/p/b"); a.RuleID != b.RuleID {
-		t.Fatalf("same rule must have the same ID")
+		t.Fatal("same directory rule must produce the same ID for its subtree")
+	}
+	if a, b := evaluate(rules, "/p/a"), evaluate(rules, "/x/a"); a.RuleID == b.RuleID {
+		t.Fatal("different rules must have different IDs")
 	}
 }
 
 func TestRuleIDsArePathScoped(t *testing.T) {
 	secret := []byte("0123456789abcdef0123456789abcdef")
-	if ruleID(secret, "/a/**", "same") == ruleID(secret, "/b/**", "same") {
+	if ruleID(secret, "/a", "same") == ruleID(secret, "/b", "same") {
 		t.Fatal("identical passwords on different paths must produce different IDs")
 	}
-	if ruleID(secret, "/a/**", "same") == ruleID([]byte("another-secret-0000000000000000"), "/a/**", "same") {
+	if ruleID(secret, "/a", "same") == ruleID([]byte("another-secret-0000000000000000"), "/a", "same") {
 		t.Fatal("IDs must depend on the secret")
 	}
 }
@@ -128,12 +108,42 @@ func TestCompileRulesValidation(t *testing.T) {
 	secret := []byte("0123456789abcdef0123456789abcdef")
 	bad := [][]Rule{
 		{{Path: "/a", Mode: modeLock}},
-		{{Path: "/a", Mode: modePublic, Password: "x"}},
-		{{Path: "/a", Mode: "nope"}},
+		{{Path: "/a", Mode: modeLegacyPublic}},
+		{{Path: "/a", Mode: "nope", Password: "p"}},
+		{{Path: "/a/*.txt", Mode: modeLock, Password: "p"}},
+		{{Path: "/a/../b", Mode: modeLock, Password: "p"}},
 	}
 	for _, rs := range bad {
 		if _, err := compileRules(rs, secret); err == nil {
 			t.Errorf("compileRules(%+v) should fail", rs)
+		}
+	}
+}
+
+func TestCompileRulesRejectsOverlap(t *testing.T) {
+	secret := []byte("0123456789abcdef0123456789abcdef")
+	cases := [][]Rule{
+		{
+			{Path: "/a", Mode: modeLock, Password: "p"},
+			{Path: "/a", Mode: modeLock, Password: "q"},
+		},
+		{
+			{Path: "/a", Mode: modeLock, Password: "p"},
+			{Path: "/a/b", Mode: modeLock, Password: "q"},
+		},
+		{
+			{Path: "/a/b", Mode: modeLock, Password: "p"},
+			{Path: "/a", Mode: modeLock, Password: "q"},
+		},
+		{
+			{Path: "/", Mode: modeLock, Password: "p"},
+			{Path: "/a", Mode: modeLock, Password: "q"},
+		},
+	}
+	for _, rs := range cases {
+		_, err := compileRules(rs, secret)
+		if !errors.Is(err, errRuleOverlap) {
+			t.Errorf("compileRules(%+v) error = %v, want rule overlap", rs, err)
 		}
 	}
 }

@@ -110,21 +110,44 @@ func validateConfig(c *Config) error {
 	if len(c.Rules) > maxRules {
 		return fmt.Errorf("规则数量超过上限 %d", maxRules)
 	}
+	rules := make([]Rule, 0, len(c.Rules))
 	for i := range c.Rules {
-		r := &c.Rules[i]
+		r := c.Rules[i]
+		// The public mode no longer exists: every rule is a lock and locks its
+		// whole subtree. Dropping old public exceptions keeps older configs
+		// loadable and is the safe direction (paths stay locked).
+		if r.Mode == modeLegacyPublic {
+			continue
+		}
+		if r.Mode == "" {
+			r.Mode = modeLock
+		}
 		if r.Path == "" {
 			return fmt.Errorf("规则 #%d: 路径为空", i+1)
+		}
+		// Older configs used a trailing /** to mean "this directory and below".
+		// That is now the default behaviour of a directory lock.
+		if strings.HasSuffix(r.Path, "/**") {
+			r.Path = strings.TrimSuffix(r.Path, "/**")
+			if r.Path == "" {
+				r.Path = "/"
+			}
 		}
 		abs, err := normalizeAbsPath(r.Path)
 		if err != nil {
 			return fmt.Errorf("规则 #%d: %w", i+1, err)
 		}
 		r.Path = abs
+		if !isExactPath(r.Path) {
+			return fmt.Errorf("规则 #%d: 路径不能包含通配符", i+1)
+		}
 		if len(r.Password) > 512 {
 			return fmt.Errorf("规则 #%d: 密码过长", i+1)
 		}
+		rules = append(rules, r)
 	}
-	// Compile once to validate globs, modes and passwords.
+	c.Rules = rules
+	// Compile once to validate modes, passwords and overlapping paths.
 	if _, err := compileRules(c.Rules, []byte("validation")); err != nil {
 		return err
 	}

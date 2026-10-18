@@ -29,6 +29,19 @@ function onLangChange(fn) {
   langChangeHandler = fn;
 }
 
+function localeText(lang, key) {
+  const table = I18N[lang] || {};
+  return table[key] != null ? table[key] : null;
+}
+
+function languageName(lang) {
+  return localeText(lang, 'meta.name') || lang.toUpperCase();
+}
+
+function languageShort(lang) {
+  return localeText(lang, 'meta.short') || lang.toUpperCase();
+}
+
 function t(key, vars) {
   const table = I18N[currentLang] || {};
   let s = table[key];
@@ -65,8 +78,8 @@ function applyI18n(root = document) {
   const btn = document.getElementById('btn-lang');
   if (btn) {
     const label = btn.querySelector('.lang-label');
-    if (label) label.textContent = currentLang === 'zh' ? 'EN' : '中文';
-    else btn.textContent = currentLang === 'zh' ? 'EN' : '中文';
+    if (label) label.textContent = languageShort(currentLang);
+    else btn.textContent = languageShort(currentLang);
   }
 }
 
@@ -84,7 +97,128 @@ document.documentElement.lang = HTML_LANG[currentLang] || currentLang;
 function bindLanguageButton() {
   const btn = document.getElementById('btn-lang');
   if (!btn) return;
-  btn.addEventListener('click', () => setLang(currentLang === 'zh' ? 'en' : 'zh'));
+
+  let picker = btn.closest('.lang-picker');
+  if (!picker) {
+    picker = document.createElement('div');
+    picker.className = 'lang-picker';
+    btn.parentNode.insertBefore(picker, btn);
+    picker.appendChild(btn);
+  }
+
+  let menu = document.getElementById('lang-menu');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'lang-menu';
+    menu.className = 'lang-menu';
+    menu.hidden = true;
+    menu.setAttribute('role', 'menu');
+    picker.appendChild(menu);
+  }
+  btn.setAttribute('aria-controls', 'lang-menu');
+
+  let menuOpen = false;
+  let onPointer = null;
+  let onKey = null;
+
+  function closeMenu(focusButton = false) {
+    if (!menuOpen) return;
+    menuOpen = false;
+    menu.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    picker.classList.remove('open');
+    if (onPointer) {
+      document.removeEventListener('pointerdown', onPointer, true);
+      onPointer = null;
+    }
+    if (onKey) {
+      document.removeEventListener('keydown', onKey);
+      onKey = null;
+    }
+    if (focusButton) btn.focus();
+  }
+
+  function renderMenu() {
+    menu.textContent = '';
+    menu.setAttribute('aria-label', t('common.language'));
+    for (const lang of I18N_LANGS) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'lang-item';
+      item.setAttribute('role', 'menuitemradio');
+      item.setAttribute('aria-checked', lang === currentLang ? 'true' : 'false');
+      item.dataset.lang = lang;
+      const name = document.createElement('span');
+      name.textContent = languageName(lang);
+      item.appendChild(name);
+      if (lang === currentLang) {
+        const check = document.createElement('span');
+        check.className = 'lang-item-check';
+        if (typeof icon === 'function') check.appendChild(icon('check'));
+        item.appendChild(check);
+      }
+      item.addEventListener('click', () => {
+        setLang(lang);
+        closeMenu(true);
+      });
+      menu.appendChild(item);
+    }
+  }
+
+  function openMenu() {
+    if (menuOpen) return;
+    renderMenu();
+    menu.hidden = false;
+    menuOpen = true;
+    btn.setAttribute('aria-expanded', 'true');
+    picker.classList.add('open');
+    const selected = menu.querySelector('.lang-item[aria-checked="true"]') || menu.firstElementChild;
+    if (selected) selected.focus();
+    onPointer = e => {
+      if (!picker.contains(e.target)) closeMenu();
+    };
+    onKey = e => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeMenu(true);
+      } else if (e.key === 'Tab') {
+        closeMenu();
+      }
+    };
+    document.addEventListener('pointerdown', onPointer, true);
+    document.addEventListener('keydown', onKey);
+  }
+
+  btn.addEventListener('click', () => {
+    if (menuOpen) closeMenu();
+    else openMenu();
+  });
+
+  btn.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      openMenu();
+    }
+  });
+
+  menu.addEventListener('keydown', e => {
+    const items = [...menu.querySelectorAll('.lang-item')];
+    if (!items.length) return;
+    const i = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      items[(i + 1) % items.length].focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      items[(i - 1 + items.length) % items.length].focus();
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      items[0].focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      items[items.length - 1].focus();
+    }
+  });
 }
 
 if (document.readyState === 'loading') {

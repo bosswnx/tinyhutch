@@ -346,6 +346,9 @@ type listEntry struct {
 	ModTime   string `json:"mtime"`
 	Locked    bool   `json:"locked,omitempty"`
 	Protected bool   `json:"protected,omitempty"`
+	// Inherited means the lock comes from a parent directory rule. Such
+	// entries cannot be locked or unlocked on their own.
+	Inherited bool `json:"inherited,omitempty"`
 }
 
 type listResponse struct {
@@ -390,7 +393,8 @@ func (s *server) handleList(w http.ResponseWriter, r *http.Request) {
 	out := make([]listEntry, 0, len(entries))
 	for _, e := range entries {
 		child := joinRel(rel, e.Name)
-		eff := evaluate(rules, absPath(child))
+		childAbs := absPath(child)
+		eff := evaluate(rules, childAbs)
 		protected := eff.Password != ""
 		locked := protected && !admin && !sess.holds(eff.RuleID)
 		typ := "file"
@@ -404,6 +408,7 @@ func (s *server) handleList(w http.ResponseWriter, r *http.Request) {
 			ModTime:   e.ModTime.Format(time.RFC3339),
 			Locked:    locked,
 			Protected: protected,
+			Inherited: protected && eff.RulePath != childAbs,
 		})
 	}
 	writeJSON(w, 200, listResponse{
@@ -872,6 +877,10 @@ func (s *server) handleRename(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 409, "exists", "同名文件或目录已存在")
 		return
 	}
+	if err := s.validateRulesAfterRename(from, to); err != nil {
+		writeError(w, 409, "rules_move_conflict", "移动后会导致上锁路径重叠，请先调整规则")
+		return
+	}
 	if err := s.files.rename(from, to); err != nil {
 		fileError(w, err)
 		return
@@ -959,6 +968,10 @@ func (s *server) handleMove(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := s.files.stat(to); err == nil {
 		writeError(w, 409, "exists", "同名文件或目录已存在")
+		return
+	}
+	if err := s.validateRulesAfterRename(from, to); err != nil {
+		writeError(w, 409, "rules_move_conflict", "移动后会导致上锁路径重叠，请先调整规则")
 		return
 	}
 	if err := s.files.rename(from, to); err != nil {
@@ -1172,23 +1185,33 @@ func (s *server) restoreRules(rules []Rule) {
 	}
 }
 
+func shiftedRules(rules []Rule, from, to string) []Rule {
+	fromAbs, toAbs := absPath(from), absPath(to)
+	out := append([]Rule(nil), rules...)
+	for i := range out {
+		switch {
+		case out[i].Path == fromAbs:
+			out[i].Path = toAbs
+		case strings.HasPrefix(out[i].Path, fromAbs+"/"):
+			out[i].Path = toAbs + strings.TrimPrefix(out[i].Path, fromAbs)
+		}
+	}
+	return out
+}
+
+// validateRulesAfterRename refuses a move/rename that would leave two lock
+// rules containing each other (for example moving a locked folder into another
+// locked folder).
+func (s *server) validateRulesAfterRename(from, to string) error {
+	cfg, _ := s.cm.Current()
+	_, err := compileRules(shiftedRules(cfg.Rules, from, to), []byte("validation"))
+	return err
+}
+
 // syncRulesRename keeps exact-path rules attached to renamed or moved files.
 func (s *server) syncRulesRename(from, to string) {
-	fromAbs, toAbs := absPath(from), absPath(to)
 	_, err := s.cm.Update(func(c *Config) error {
-		for i := range c.Rules {
-			r := &c.Rules[i]
-			if !isExactPath(r.Path) {
-				continue
-			}
-			if r.Path == fromAbs {
-				r.Path = toAbs
-				continue
-			}
-			if strings.HasPrefix(r.Path, fromAbs+"/") {
-				r.Path = toAbs + strings.TrimPrefix(r.Path, fromAbs)
-			}
-		}
+		c.Rules = shiftedRules(c.Rules, from, to)
 		return nil
 	})
 	if err != nil {

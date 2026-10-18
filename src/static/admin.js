@@ -24,6 +24,7 @@ async function api(path, opts = {}) {
   if (!res.ok) {
     const err = new Error((data && data.message) || res.statusText || t('common.error'));
     err.status = res.status;
+    err.code = data && data.code;
     err.data = data;
     throw err;
   }
@@ -56,6 +57,18 @@ function formatUptime(sec) {
 
 /* ---------- rules ---------- */
 
+function cleanRulePath(p) {
+  let s = p.trim();
+  if (s.length > 1) s = s.replace(/\/+$/, '');
+  return s;
+}
+
+function ruleContains(parent, child) {
+  if (parent === child) return true;
+  if (parent === '/') return child.startsWith('/');
+  return child.startsWith(parent + '/');
+}
+
 function renderRules() {
   const body = $('#rules-body');
   body.textContent = '';
@@ -68,29 +81,10 @@ function renderRules() {
     pathTd.appendChild(pathLabel);
     const pathInput = el('input', 'input mono');
     pathInput.value = r.path || '';
-    pathInput.placeholder = '/private/**';
+    pathInput.placeholder = '/private';
     pathInput.addEventListener('input', () => { r.path = pathInput.value.trim(); });
     pathTd.appendChild(pathInput);
     tr.appendChild(pathTd);
-
-    const modeTd = el('td', 'rule-mode');
-    const modeLabel = el('span', 'td-label', t('admin.rules_mode'));
-    modeLabel.dataset.i18n = 'admin.rules_mode';
-    modeTd.appendChild(modeLabel);
-    const select = el('select', 'input');
-    for (const [value, label] of [['lock', t('admin.rules_mode_lock')], ['public', t('admin.rules_mode_public')]]) {
-      const opt = el('option', null, label);
-      opt.value = value;
-      select.appendChild(opt);
-    }
-    select.value = r.mode || 'lock';
-    select.addEventListener('change', () => {
-      r.mode = select.value;
-      if (r.mode === 'public') r.password = '';
-      renderRules();
-    });
-    modeTd.appendChild(select);
-    tr.appendChild(modeTd);
 
     const pwTd = el('td', 'rule-password');
     const pwLabel = el('span', 'td-label', t('admin.rules_password'));
@@ -101,7 +95,6 @@ function renderRules() {
     pwInput.type = 'password';
     pwInput.value = r.password || '';
     pwInput.autocomplete = 'new-password';
-    pwInput.disabled = r.mode === 'public';
     pwInput.addEventListener('input', () => { r.password = pwInput.value; });
     pwWrap.appendChild(pwInput);
     const reveal = el('button', 'icon-btn');
@@ -118,22 +111,6 @@ function renderRules() {
     tr.appendChild(pwTd);
 
     const actions = el('td', 'row-actions');
-    const up = el('button', 'order-btn');
-    up.type = 'button';
-    up.appendChild(icon('chevron-up'));
-    up.disabled = index === 0;
-    up.addEventListener('click', () => {
-      [rules[index - 1], rules[index]] = [rules[index], rules[index - 1]];
-      renderRules();
-    });
-    const down = el('button', 'order-btn');
-    down.type = 'button';
-    down.appendChild(icon('chevron-down'));
-    down.disabled = index === rules.length - 1;
-    down.addEventListener('click', () => {
-      [rules[index + 1], rules[index]] = [rules[index], rules[index + 1]];
-      renderRules();
-    });
     const del = el('button', 'order-btn danger');
     del.type = 'button';
     del.appendChild(icon('trash'));
@@ -141,7 +118,7 @@ function renderRules() {
       rules.splice(index, 1);
       renderRules();
     });
-    actions.append(up, down, del);
+    actions.appendChild(del);
     tr.appendChild(actions);
 
     body.appendChild(tr);
@@ -149,33 +126,41 @@ function renderRules() {
   if (rules.length === 0) {
     const tr = el('tr');
     const td = el('td', 'hint', t('admin.rules_empty'));
-    td.colSpan = 4;
+    td.colSpan = 3;
     tr.appendChild(td);
     body.appendChild(tr);
   }
 }
 
 function collectRules() {
+  const out = [];
   for (let i = 0; i < rules.length; i++) {
     const r = rules[i];
-    if (!r.path || !r.path.startsWith('/')) {
+    const p = cleanRulePath(r.path || '');
+    if (!p.startsWith('/')) {
       throw new Error(t('admin.rules_err_path', { n: i + 1 }));
     }
-    if (r.mode === 'lock' && !r.password) {
+    if (!r.password) {
       throw new Error(t('admin.rules_err_lock', { n: i + 1 }));
     }
-    if (r.mode === 'public' && r.password) {
-      throw new Error(t('admin.rules_err_public', { n: i + 1 }));
+    if (/[*?]/.test(p)) {
+      throw new Error(t('admin.rules_err_glob', { n: i + 1 }));
     }
+    for (let j = 0; j < out.length; j++) {
+      if (ruleContains(out[j].path, p) || ruleContains(p, out[j].path)) {
+        throw new Error(t('admin.rules_err_overlap', { n: i + 1, m: j + 1, path: p }));
+      }
+    }
+    out.push({ path: p, mode: 'lock', password: r.password });
   }
-  return rules.map(r => ({ path: r.path, mode: r.mode, ...(r.mode === 'lock' ? { password: r.password } : {}) }));
+  return out;
 }
 
 /* ---------- load / save ---------- */
 
 async function loadConfig() {
   const cfg = await api('/api/admin/config');
-  rules = (cfg.rules || []).map(r => ({ path: r.path, mode: r.mode, password: r.password || '' }));
+  rules = (cfg.rules || []).map(r => ({ path: r.path, password: r.password || '' }));
   renderRules();
   $('#set-site').value = cfg.site_name || '';
   $('#set-hours').value = cfg.session_hours || 12;
@@ -313,10 +298,7 @@ async function testRule() {
     if (r.locked) box.appendChild(el('div', 'hint', t('admin.test_write_note')));
     if (r.matched_rules && r.matched_rules.length) {
       const list = r.matched_rules.map(i => '#' + (i + 1)).join(getLang() === 'zh' ? '、' : ', ');
-      box.appendChild(el('div', 'hint',
-        r.rule_index >= 0
-          ? t('admin.test_matched', { list, index: r.rule_index + 1 })
-          : t('admin.test_matched_public', { list })));
+      box.appendChild(el('div', 'hint', t('admin.test_matched', { list, index: r.rule_index + 1 })));
     } else {
       box.appendChild(el('div', 'hint', t('admin.test_none')));
     }
@@ -356,7 +338,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   $('#pw-save').addEventListener('click', savePassword);
   $('#rules-add').addEventListener('click', () => {
-    rules.push({ path: '/', mode: 'lock', password: '' });
+    rules.push({ path: '/', password: '' });
     renderRules();
   });
   $('#rules-save').addEventListener('click', saveRules);

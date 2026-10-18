@@ -113,8 +113,12 @@ func TestConfigValidation(t *testing.T) {
 	bad := []*Config{
 		{Rules: []Rule{{Path: "", Mode: modeLock, Password: "p"}}},
 		{Rules: []Rule{{Path: "/a", Mode: modeLock}}},
-		{Rules: []Rule{{Path: "/a", Mode: modePublic, Password: "x"}}},
-		{Rules: []Rule{{Path: "/a", Mode: "write"}}},
+		{Rules: []Rule{{Path: "/a", Mode: "write", Password: "p"}}},
+		{Rules: []Rule{{Path: "/a/*.txt", Mode: modeLock, Password: "p"}}},
+		{Rules: []Rule{
+			{Path: "/a", Mode: modeLock, Password: "p"},
+			{Path: "/a/b", Mode: modeLock, Password: "q"},
+		}},
 		{SessionHours: 100000},
 		{MaxUploadMB: -1},
 		{ListenPort: -1},
@@ -128,12 +132,28 @@ func TestConfigValidation(t *testing.T) {
 			t.Errorf("case %d should fail: %+v", i, c)
 		}
 	}
-	good := &Config{Rules: []Rule{{Path: "docs/**", Mode: modeLock, Password: "p"}}}
+	good := &Config{Rules: []Rule{
+		{Path: "docs/**", Mode: modeLock, Password: "p"},
+		{Path: "/private", Password: "q"},
+	}}
 	if err := validateConfig(good); err != nil {
 		t.Fatal(err)
 	}
-	if good.Rules[0].Path != "/docs/**" {
-		t.Fatalf("rule path not normalized: %q", good.Rules[0].Path)
+	if good.Rules[0].Path != "/docs" {
+		t.Fatalf("legacy /** path not normalized: %q", good.Rules[0].Path)
+	}
+	if good.Rules[1].Mode != modeLock {
+		t.Fatalf("empty mode not normalized: %q", good.Rules[1].Mode)
+	}
+	public := &Config{Rules: []Rule{
+		{Path: "/a", Mode: modeLock, Password: "p"},
+		{Path: "/a/open", Mode: modeLegacyPublic},
+	}}
+	if err := validateConfig(public); err != nil {
+		t.Fatal(err)
+	}
+	if len(public.Rules) != 1 || public.Rules[0].Path != "/a" {
+		t.Fatalf("public rule was not removed: %+v", public.Rules)
 	}
 	if err := validateConfig(&Config{ListenHost: "::1", ListenPort: 8080}); err != nil {
 		t.Fatalf("ipv6 host rejected: %v", err)

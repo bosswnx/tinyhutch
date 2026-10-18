@@ -135,6 +135,10 @@ func (s *server) handleAdminRules(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, errRuleOverlap) {
+			writeError(w, 400, "rules_overlap", err.Error())
+			return
+		}
 		writeError(w, 400, "bad_request", err.Error())
 		return
 	}

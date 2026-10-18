@@ -16,8 +16,8 @@
     <div class="actions">
       <a class="btn" href="/"><span data-icon="arrow-left"></span><span data-i18n="common.back">返回文件列表</span></a>
       <button id="btn-logout" class="btn" type="button"><span data-icon="log-out"></span><span data-i18n="admin.logout">退出登录</span></button>
-      <button id="btn-lang" class="btn" type="button" data-i18n-title="common.language" data-i18n-aria-label="common.language">
-        <span data-icon="languages"></span><span class="lang-label">EN</span>
+      <button id="btn-lang" class="btn" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n-title="common.language" data-i18n-aria-label="common.language">
+        <span data-icon="languages"></span><span class="lang-label">EN</span><span data-icon="chevron-down" data-icon-class="icon lang-caret"></span>
       </button>
       <button id="btn-theme" class="icon-btn" type="button" data-i18n-title="common.theme" data-i18n-aria-label="common.theme"></button>
     </div>
@@ -58,14 +58,13 @@
 
     <section class="card">
       <h2><span data-icon="list"></span><span data-i18n="admin.rules_heading">路径规则</span></h2>
-      <p class="hint" data-i18n="admin.rules_hint">顺序从上到下生效，后面的规则覆盖前面的。lock = 需要密码，public = 清除从上层继承的锁。密码只授予读权限。</p>
+      <p class="hint" data-i18n="admin.rules_hint">路径上锁后，其下所有文件和子目录都会一并上锁，密码只授予读权限。不同规则的路径不能互相包含。</p>
       <table class="rules-table">
         <thead>
           <tr>
-            <th style="width:38%" data-i18n="admin.rules_path">路径</th>
-            <th style="width:18%" data-i18n="admin.rules_mode">模式</th>
+            <th style="width:45%" data-i18n="admin.rules_path">路径</th>
             <th data-i18n="admin.rules_password">密码</th>
-            <th style="width:130px"></th>
+            <th style="width:64px"></th>
           </tr>
         </thead>
         <tbody id="rules-body"></tbody>
@@ -74,7 +73,7 @@
         <button id="rules-add" class="btn" type="button"><span data-icon="plus"></span><span data-i18n="admin.rules_add">+ 新增规则</span></button>
         <button id="rules-save" class="btn primary" type="button"><span data-icon="check"></span><span data-i18n="admin.rules_save">保存规则</span></button>
       </div>
-      <p class="hint" data-i18n="admin.rules_hint2">在文件列表里点击「上锁」会自动追加精确路径规则，这里也能看到并调整顺序。</p>
+      <p class="hint" data-i18n="admin.rules_hint2">在文件列表里点击「上锁」会自动添加该路径的规则。目录上锁后，目录内的项目由该目录统一控制。</p>
     </section>
 
     <section class="card">
