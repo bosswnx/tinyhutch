@@ -27,7 +27,7 @@ chmod +x tinyhutch_linux_amd64
 ./tinyhutch_linux_amd64 /path/to/files
 ```
 
-TinyHutch 默认将当前目录作为工作目录，监听 `127.0.0.1:5000`，并在工作目录下生成 `config.json`。
+TinyHutch 默认将当前目录作为工作目录，监听 `127.0.0.1:7500`，并在工作目录下生成 `config.json`。
 
 ```bash
 ./tinyhutch                      # 默认将当前目录作为工作目录
@@ -35,9 +35,43 @@ TinyHutch 默认将当前目录作为工作目录，监听 `127.0.0.1:5000`，�
 ./tinyhutch --config my.json     # 指定配置文件
 ```
 
-打开 <http://127.0.0.1:5000>。
+打开 <http://127.0.0.1:7500>。
 
 > 部署在远程服务器上时，建议把 `listen_host` 设为 `0.0.0.0`，并放在 TLS 反向代理之后；生产环境请设置 `admin_password`，并保持 `insecure_cookie` 为 `false`。
+
+## Docker 部署
+
+仓库自带 `Dockerfile` 和 `docker-compose.yml`，一条命令即可启动：
+
+```bash
+docker compose up -d --build
+docker compose logs tinyhutch   # 首次启动会打印自动生成的管理员密码
+```
+
+（`make docker-up` 是同样命令的快捷方式。）
+
+打开 <http://localhost:7500>。文件存放在 `./data`，首次启动会生成 `./data/config.json`；`./data/.tinyhutch.secret` 是会话密钥。
+
+首次启动前如需设置管理员密码、宿主机端口、上传上限或路径加锁规则，可以复制并修改 `.env.example`：
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+环境变量只在生成 `config.json` 时生效。之后请直接编辑 `./data/config.json`（TinyHutch 会自动重新加载，修改 `listen_host`/`listen_port` 需重启容器）。管理员密码也可以在网页 `/admin` 中修改。
+
+放在 HTTPS 反向代理之后时，请设置 `TINYHUTCH_TRUST_PROXY=true`、`TINYHUT_INSECURE_COOKIE=false`（可选 `TINYHUT_BIND=127.0.0.1`，只允许代理访问该端口），并把代理的请求体上限调到不小于 `max_upload_mb`（nginx 示例：`client_max_body_size 4096m;`）。
+
+常用命令：
+
+```bash
+docker compose logs -f tinyhutch
+docker compose restart
+docker compose down
+```
+
+容器启动后会降权到 uid/gid `1000` 运行。如果 `./data` 对该用户不可写（Linux 绑定挂载常见），执行 `sudo chown -R 1000:1000 ./data`，或在 compose 文件中设置 `user:`。
 
 ## 配置
 
@@ -57,7 +91,7 @@ TinyHutch 默认从工作目录读取 `config.json`，也可以用 `--config` �
 | `insecure_cookie` | 本地 HTTP 调试时使用非 Secure Cookie；生产部署保持 `false` |
 | `rules` | 权限规则列表 |
 
-配置文件更新后，需要重启 TinyHutch 才能加载。
+TinyHutch 会自动监听 `config.json` 的变化并重新加载；修改 `listen_host`、`listen_port` 需要重启。
 
 ### 给路径加锁
 

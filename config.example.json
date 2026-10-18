@@ -1,7 +1,7 @@
 {
   "site_name": "TinyHutch",
   "listen_host": "127.0.0.1",
-  "listen_port": 5000,
+  "listen_port": 7500,
   "admin_password": "",
   "session_hours": 12,
   "max_upload_mb": 4096,

@@ -66,7 +66,7 @@ func applyDefaults(c *Config) {
 		c.ListenHost = "127.0.0.1"
 	}
 	if c.ListenPort == 0 {
-		c.ListenPort = 8080
+		c.ListenPort = 7500
 	}
 	if c.LogLevel == "" {
 		c.LogLevel = "info"

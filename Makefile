@@ -1,9 +1,9 @@
-VERSION ?= 0.2.1
+VERSION ?= 0.3.1
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS = -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
-.PHONY: build test vet dist snapshot clean
+.PHONY: build test vet dist snapshot clean docker-build docker-up docker-down
 
 build:
 	CGO_ENABLED=0 go build -trimpath -ldflags="$(LDFLAGS)" -o dist/tinyhutch ./src
@@ -25,6 +25,21 @@ dist:
 # publishing anything. Requires goreleaser v2.
 snapshot:
 	goreleaser release --snapshot --clean
+
+docker-build:
+	docker build \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg DATE=$(DATE) \
+		-t tinyhutch:$(VERSION) .
+
+# One-click deployment: build the image and start the container in the
+# background. Data and config live in ./data.
+docker-up:
+	TINYHUTCH_VERSION=$(VERSION) docker compose up -d --build
+
+docker-down:
+	docker compose down
 
 clean:
 	rm -rf dist .goreleaser

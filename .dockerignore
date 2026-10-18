@@ -1,0 +1,11 @@
+.git
+.github
+.goreleaser
+dist
+data
+img.png
+*.md
+LICENSE
+.env
+.env.*
+docker-compose.yml

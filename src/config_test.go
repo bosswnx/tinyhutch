@@ -25,7 +25,7 @@ func TestConfigCreateAndReload(t *testing.T) {
 	if cfg.SiteName != "TinyHutch" || cfg.SessionHours != defaultSessionHours || cfg.MaxUploadMB != defaultMaxUploadMB {
 		t.Fatalf("defaults not applied: %+v", cfg)
 	}
-	if cfg.ListenHost != "127.0.0.1" || cfg.ListenPort != 8080 || cfg.LogLevel != "info" || cfg.InsecureCookie || cfg.TrustProxy {
+	if cfg.ListenHost != "127.0.0.1" || cfg.ListenPort != 7500 || cfg.LogLevel != "info" || cfg.InsecureCookie || cfg.TrustProxy {
 		t.Fatalf("network/log defaults not applied: %+v", cfg)
 	}
 	st, err := os.Stat(path)

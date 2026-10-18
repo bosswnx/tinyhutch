@@ -1,2 +1,4 @@
 dist/
 .goreleaser/
+data/
+.env

@@ -1,0 +1,34 @@
+services:
+  tinyhutch:
+    build:
+      context: .
+      args:
+        VERSION: ${TINYHUTCH_VERSION:-dev}
+        COMMIT: ${TINYHUTCH_COMMIT:-none}
+        DATE: ${TINYHUTCH_DATE:-unknown}
+    image: tinyhutch:${TINYHUTCH_VERSION:-latest}
+    container_name: tinyhutch
+    restart: unless-stopped
+    ports:
+      # bind:host:container
+      - "${TINYHUTCH_BIND:-0.0.0.0}:${TINYHUTCH_PORT:-7500}:${TINYHUTCH_LISTEN_PORT:-7500}"
+    volumes:
+      # Everything TinyHutch manages, including config.json and the session
+      # secret, lives here.
+      - ./data:/data
+    environment:
+      # Passed through from the shell or .env when set. When unset, a random
+      # password is generated on first start and printed to the container log.
+      - TINYHUTCH_ADMIN_PASSWORD
+      # The remaining variables only apply while config.json is being created.
+      - TINYHUTCH_SITE_NAME=${TINYHUTCH_SITE_NAME:-TinyHutch}
+      - TINYHUTCH_LISTEN_PORT=${TINYHUTCH_LISTEN_PORT:-7500}
+      - TINYHUTCH_SESSION_HOURS=${TINYHUTCH_SESSION_HOURS:-12}
+      - TINYHUTCH_MAX_UPLOAD_MB=${TINYHUTCH_MAX_UPLOAD_MB:-4096}
+      - TINYHUTCH_SHOW_HIDDEN=${TINYHUTCH_SHOW_HIDDEN:-false}
+      - TINYHUTCH_LOG_LEVEL=${TINYHUTCH_LOG_LEVEL:-info}
+      - TINYHUTCH_TRUST_PROXY=${TINYHUTCH_TRUST_PROXY:-false}
+      - TINYHUTCH_INSECURE_COOKIE=${TINYHUTCH_INSECURE_COOKIE:-true}
+      - TINYHUTCH_RULES=${TINYHUTCH_RULES:-[]}
+    security_opt:
+      - no-new-privileges:true
