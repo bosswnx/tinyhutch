@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="admin.page_title">TinyFM 后台</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark"><span data-icon="folder"></span></span>
+      <span>TinyFM</span>
+    </a>
+    <div class="actions">
+      <a class="btn" href="/"><span data-icon="arrow-left"></span><span data-i18n="common.back">返回文件列表</span></a>
+      <button id="btn-logout" class="btn" type="button"><span data-icon="log-out"></span><span data-i18n="admin.logout">退出登录</span></button>
+      <button id="btn-lang" class="btn" type="button" data-i18n-title="common.language" data-i18n-aria-label="common.language">
+        <span data-icon="languages"></span><span class="lang-label">EN</span>
+      </button>
+      <button id="btn-theme" class="icon-btn" type="button" data-i18n-title="common.theme" data-i18n-aria-label="common.theme"></button>
+    </div>
+  </header>
+
+  <main class="admin-wrap">
+    <div class="admin-head">
+      <h1 data-i18n="admin.heading">后台管理</h1>
+    </div>
+
+    <section class="card">
+      <h2><span data-icon="key"></span><span data-i18n="admin.password_heading">管理密码</span></h2>
+      <p id="pw-status" class="hint"></p>
+      <div class="field">
+        <button id="pw-add" class="btn hidden" type="button"><span data-icon="plus"></span><span data-i18n="admin.password_add">添加密码</span></button>
+        <button id="pw-change" class="btn hidden" type="button"><span data-icon="pencil"></span><span data-i18n="admin.password_change">更改密码</span></button>
+        <button id="pw-delete" class="btn danger hidden" type="button"><span data-icon="trash"></span><span data-i18n="admin.password_delete">删除密码</span></button>
+      </div>
+      <div id="pw-form" class="hidden">
+        <div class="field" id="pw-current-row">
+          <label for="pw-current" data-i18n="admin.password_current">当前密码</label>
+          <input id="pw-current" class="input" type="password" autocomplete="current-password">
+        </div>
+        <div class="field" id="pw-new-row">
+          <label for="pw-new" data-i18n="admin.password_new">新密码</label>
+          <input id="pw-new" class="input" type="password" autocomplete="new-password">
+        </div>
+        <div class="field" id="pw-confirm-row">
+          <label for="pw-confirm" data-i18n="admin.password_confirm">确认新密码</label>
+          <input id="pw-confirm" class="input" type="password" autocomplete="new-password">
+        </div>
+        <div class="field">
+          <button id="pw-save" class="btn primary" type="button">保存密码</button>
+          <button id="pw-cancel" class="btn" type="button" data-i18n="common.cancel">取消</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2><span data-icon="list"></span><span data-i18n="admin.rules_heading">路径规则</span></h2>
+      <p class="hint" data-i18n="admin.rules_hint">顺序从上到下生效，后面的规则覆盖前面的。lock = 需要密码，public = 清除从上层继承的锁。密码只授予读权限。</p>
+      <table class="rules-table">
+        <thead>
+          <tr>
+            <th style="width:38%" data-i18n="admin.rules_path">路径</th>
+            <th style="width:18%" data-i18n="admin.rules_mode">模式</th>
+            <th data-i18n="admin.rules_password">密码</th>
+            <th style="width:130px"></th>
+          </tr>
+        </thead>
+        <tbody id="rules-body"></tbody>
+      </table>
+      <div class="field" style="margin-top:12px">
+        <button id="rules-add" class="btn" type="button"><span data-icon="plus"></span><span data-i18n="admin.rules_add">+ 新增规则</span></button>
+        <button id="rules-save" class="btn primary" type="button"><span data-icon="check"></span><span data-i18n="admin.rules_save">保存规则</span></button>
+      </div>
+      <p class="hint" data-i18n="admin.rules_hint2">在文件列表里点击「上锁」会自动追加精确路径规则，这里也能看到并调整顺序。</p>
+    </section>
+
+    <section class="card">
+      <h2><span data-icon="play"></span><span data-i18n="admin.test_heading">规则测试器</span></h2>
+      <div class="field">
+        <input id="test-path" class="input" placeholder="/private/a.txt">
+        <button id="test-run" class="btn" type="button"><span data-icon="play"></span><span data-i18n="admin.test_run">测试</span></button>
+      </div>
+      <div id="test-result" class="test-result"></div>
+    </section>
+
+    <section class="card">
+      <h2><span data-icon="sliders"></span><span data-i18n="admin.settings_heading">系统设置</span></h2>
+      <div class="field">
+        <label for="set-site" data-i18n="admin.settings_site">站点名称</label>
+        <input id="set-site" class="input">
+      </div>
+      <div class="field">
+        <label for="set-hours" data-i18n="admin.settings_hours">会话时长</label>
+        <input id="set-hours" class="input small" type="number" min="1" max="8760">
+        <span class="hint" data-i18n="admin.settings_hours_unit">小时</span>
+      </div>
+      <div class="field">
+        <label for="set-max" data-i18n="admin.settings_max">上传上限</label>
+        <input id="set-max" class="input small" type="number" min="1">
+        <span class="hint" data-i18n="admin.settings_mb_unit">MB</span>
+      </div>
+      <div class="field">
+        <label for="set-hidden" data-i18n="admin.settings_hidden">显示隐藏文件</label>
+        <input id="set-hidden" type="checkbox">
+      </div>
+      <button id="set-save" class="btn primary" type="button"><span data-icon="check"></span><span data-i18n="admin.settings_save">保存设置</span></button>
+    </section>
+
+    <section class="card">
+      <h2><span data-icon="activity"></span><span data-i18n="admin.status_heading">系统状态</span></h2>
+      <dl id="status" class="status-grid"></dl>
+    </section>
+
+    <section class="card">
+      <h2><span data-icon="alert"></span><span data-i18n="admin.danger_heading">危险操作</span></h2>
+      <p class="hint" data-i18n="admin.danger_hint">轮换会话密钥，所有设备（包括当前浏览器）都会退出登录。</p>
+      <button id="logout-all" class="btn danger" type="button"><span data-icon="log-out"></span><span data-i18n="admin.danger_logout_all">退出所有会话</span></button>
+    </section>
+  </main>
+
+  <script src="/static/icons.js"></script>
+  <script src="/static/locales/zh.js"></script>
+  <script src="/static/locales/en.js"></script>
+  <script src="/static/i18n.js"></script>
+  <script src="/static/theme.js"></script>
+  <script src="/static/toast.js"></script>
+  <script src="/static/admin.js"></script>
+</body>
+</html>

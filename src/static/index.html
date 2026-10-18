@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TinyFM</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark"><span data-icon="folder"></span></span>
+      <span id="site-name">TinyFM</span>
+    </a>
+    <div class="actions">
+      <button id="btn-upload" class="btn primary hidden" type="button">
+        <span data-icon="upload"></span><span data-i18n="common.upload">上传</span>
+      </button>
+      <button id="btn-mkdir" class="btn hidden" type="button">
+        <span data-icon="folder-plus"></span><span data-i18n="common.mkdir">新建</span>
+      </button>
+      <button id="btn-login" class="btn primary" type="button">
+        <span data-icon="log-in"></span><span id="login-label">登录</span>
+      </button>
+      <a id="btn-admin" class="btn hidden" href="/admin">
+        <span data-icon="sliders"></span><span data-i18n="common.admin">后台</span>
+      </a>
+      <button id="btn-logout" class="btn hidden" type="button">
+        <span data-icon="log-out"></span><span data-i18n="common.logout">退出</span>
+      </button>
+      <button id="btn-lang" class="btn" type="button" data-i18n-title="common.language" data-i18n-aria-label="common.language">
+        <span data-icon="languages"></span><span class="lang-label">EN</span>
+      </button>
+      <button id="btn-theme" class="icon-btn" type="button" data-i18n-title="common.theme" data-i18n-aria-label="common.theme"></button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <input id="filter" class="filter" type="search" placeholder="过滤当前目录…" data-i18n-placeholder="index.filter" autocomplete="off" data-i18n-aria-label="index.filter" aria-label="Filter">
+    <div id="selection-bar" class="selection-bar hidden">
+      <span id="selection-count"></span>
+      <button id="selection-download" class="btn" type="button">
+        <span data-icon="download"></span><span data-i18n="index.download_selected">全部下载</span>
+      </button>
+      <button id="selection-delete" class="btn danger" type="button">
+        <span data-icon="trash"></span><span data-i18n="index.delete_selected">删除选中</span>
+      </button>
+      <button id="selection-clear" class="btn" type="button" data-i18n="index.clear_selection">取消选择</button>
+    </div>
+  </div>
+
+  <nav id="crumbs" class="crumbs" data-i18n-aria-label="nav.path" aria-label="Path"></nav>
+
+  <main>
+    <table class="filetable">
+      <thead>
+        <tr>
+          <th class="col-select"><input type="checkbox" id="select-all" data-i18n-title="index.select_all" data-i18n-aria-label="index.select_all" aria-label="Select all"></th>
+          <th class="col-name"><button class="sortbtn" data-sort="name" type="button"><span data-i18n="common.name">名称</span><span class="arrow"></span></button></th>
+          <th class="col-size"><button class="sortbtn" data-sort="size" type="button"><span data-i18n="common.size">大小</span><span class="arrow"></span></button></th>
+          <th class="col-time"><button class="sortbtn" data-sort="mtime" type="button"><span data-i18n="common.mtime">修改时间</span><span class="arrow"></span></button></th>
+          <th class="col-actions" data-i18n="common.actions">操作</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div id="empty" class="empty hidden">
+      <span class="empty-icon"><span data-icon="inbox"></span></span>
+      <span id="empty-text"></span>
+    </div>
+    <div id="truncated" class="notice hidden" data-i18n="index.truncated">目录内容过多，仅显示前 5000 项</div>
+  </main>
+
+  <footer class="statusbar">
+    <span id="count"></span>
+    <span id="total"></span>
+  </footer>
+
+  <div id="dropzone" class="dropzone hidden">
+    <span data-icon="upload-cloud"></span>
+    <span data-i18n="index.drop">松开以上传文件</span>
+  </div>
+
+  <div id="upload-panel" class="upload-panel hidden">
+    <div class="upload-head">
+      <span data-i18n="index.upload_queue">上传队列</span>
+      <button id="upload-close" class="icon-btn" type="button" data-i18n-aria-label="common.close" aria-label="关闭"><span data-icon="x"></span></button>
+    </div>
+    <ul id="upload-list"></ul>
+  </div>
+
+  <div id="modal-root"></div>
+  <input id="file-input" type="file" multiple hidden>
+  <script src="/static/icons.js"></script>
+  <script src="/static/locales/zh.js"></script>
+  <script src="/static/locales/en.js"></script>
+  <script src="/static/i18n.js"></script>
+  <script src="/static/theme.js"></script>
+  <script src="/static/toast.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

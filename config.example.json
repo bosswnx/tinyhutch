@@ -1,0 +1,17 @@
+{
+  "site_name": "TinyFM",
+  "listen_host": "127.0.0.1",
+  "listen_port": 8080,
+  "admin_password": "",
+  "session_hours": 12,
+  "max_upload_mb": 4096,
+  "show_hidden": false,
+  "log_level": "info",
+  "trust_proxy": false,
+  "insecure_cookie": false,
+  "rules": [
+    { "path": "/private/**", "mode": "lock", "password": "change-this-path-password" },
+    { "path": "/private/shared/**", "mode": "public" },
+    { "path": "/reports/*.pdf", "mode": "lock", "password": "reports-password" }
+  ]
+}
