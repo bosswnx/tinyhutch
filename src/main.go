@@ -16,7 +16,11 @@ import (
 	"time"
 )
 
-var version = "dev"
+var (
+	version = "0.1.1"
+	commit  = "none"
+	date    = "unknown"
+)
 
 // appLogLevel is updated when config.json changes, so log_level takes effect
 // without a restart.
@@ -136,7 +140,7 @@ func main() {
 	flag.CommandLine.Parse(reorderArgs(os.Args[1:]))
 
 	if *showVersion {
-		fmt.Println("tinyfm", version)
+		fmt.Printf("tinyfm %s (commit %s, built %s)\n", version, commit, date)
 		return
 	}
 

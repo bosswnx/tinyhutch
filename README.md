@@ -55,5 +55,17 @@ Requires Go ≥ 1.25.
 ```bash
 make build    # local binary at dist/tinyfm
 make test     # unit + integration tests
-make dist     # linux/amd64, linux/arm64, darwin/arm64
+make dist     # linux/amd64, linux/arm64, darwin/amd64, darwin/arm64
+make snapshot # local GoReleaser dry run into .goreleaser/
 ```
+
+## Release
+
+Releases follow Semantic Versioning and are driven by Git tags. Pushing a `v*` tag runs GoReleaser in GitHub Actions, builds the Unix binaries, and publishes archives plus `SHA256SUMS` to GitHub Releases.
+
+```bash
+git tag -a v0.1.1 -m "v0.1.1"
+git push origin v0.1.1
+```
+
+The current version is `0.1.1`; `make build` and `make dist` inject it through `-ldflags`.

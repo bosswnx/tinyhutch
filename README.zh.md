@@ -55,6 +55,18 @@ TinyFM 有以下特色：
 ```bash
 make build    # 本机二进制 dist/tinyfm
 make test     # 单元 + 集成测试
-make dist     # linux/amd64、linux/arm64、darwin/arm64
+make dist     # linux/amd64、linux/arm64、darwin/amd64、darwin/arm64
+make snapshot # 本地 GoReleaser 试构建，输出到 .goreleaser/
 ```
+
+## 发布
+
+发布遵循语义化版本（SemVer），以 Git tag 为准。推送 `v*` tag 后，GitHub Actions 会自动运行 GoReleaser，构建 Unix 二进制并把压缩包和 `SHA256SUMS` 发布到 GitHub Releases。
+
+```bash
+git tag -a v0.1.1 -m "v0.1.1"
+git push origin v0.1.1
+```
+
+当前版本为 `0.1.1`，`make build` 和 `make dist` 会通过 `-ldflags` 注入该版本号。
 
