@@ -97,7 +97,7 @@ func parseArgs(args []string, cwd string) (rootDir string, err error) {
 	case 1:
 		return resolveDir(args[0], cwd)
 	default:
-		return "", errors.New("参数过多，用法: hutch [选项] [目录]")
+		return "", errors.New("参数过多，用法: tinyhutch [选项] [目录]")
 	}
 }
 
@@ -140,7 +140,7 @@ func main() {
 	flag.CommandLine.Parse(reorderArgs(os.Args[1:]))
 
 	if *showVersion {
-		fmt.Printf("hutch %s (commit %s, built %s)\n", version, commit, date)
+		fmt.Printf("tinyhutch %s (commit %s, built %s)\n", version, commit, date)
 		return
 	}
 
@@ -166,7 +166,7 @@ func main() {
 
 	configPath := resolveConfigPath(rootDir, *configFlag, cwd)
 
-	secretPath := filepath.Join(rootDir, ".hutch.secret")
+	secretPath := filepath.Join(rootDir, ".tinyhutch.secret")
 	secret, err := ensureSecret(secretPath)
 	if err != nil {
 		slog.Error("读取或生成会话密钥失败", "err", err)

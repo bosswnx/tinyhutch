@@ -13,7 +13,7 @@ TinyHutch is a **simple, single-binary, self-hosted file manager**. Point it at 
 ## Why TinyHutch
 
 - **One binary, zero dependencies.** A ~7 MB Go executable for Linux and macOS (amd64/arm64). No Node, PHP, Python, or database to install.
-- **Simple by design.** Run `./hutch /srv/files` and you are done; `config.json` is created on first start.
+- **Simple by design.** Run `./tinyhutch /srv/files` and you are done; `config.json` is created on first start.
 - **Per-path password locks.** Lock a file or a whole directory subtree with its own password. Unlocking one path does not unlock the rest.
 - **Built for sharing.** Copy a download link for any file, or zip and download a whole folder. Links work in scripts and with `curl`.
 - **Comfortable UI.** Mobile layout, dark mode, and English/Chinese support.
@@ -24,16 +24,16 @@ TinyHutch is a **simple, single-binary, self-hosted file manager**. Point it at 
 Download the binary for your platform from [Releases](https://github.com/bosswnx/tinyhutch/releases/latest), then:
 
 ```bash
-chmod +x hutch_linux_amd64
-./hutch_linux_amd64 /path/to/files
+chmod +x tinyhutch_linux_amd64
+./tinyhutch_linux_amd64 /path/to/files
 ```
 
 TinyHutch serves the current directory by default and listens on `127.0.0.1:5000`, creating `config.json` in the served directory.
 
 ```bash
-./hutch                      # serve the current directory
-./hutch /srv/files           # serve a specific directory
-./hutch --config my.json     # use a specific config file
+./tinyhutch                      # serve the current directory
+./tinyhutch /srv/files           # serve a specific directory
+./tinyhutch --config my.json     # use a specific config file
 ```
 
 Open <http://127.0.0.1:5000>.
@@ -78,7 +78,7 @@ A locked directory also locks everything below it, and rule paths cannot overlap
 Requires Go ≥ 1.25.
 
 ```bash
-make build    # local binary at dist/hutch
+make build    # local binary at dist/tinyhutch
 make test     # unit + integration tests
 make dist     # linux/amd64, linux/arm64, darwin/amd64, darwin/arm64
 make snapshot # local GoReleaser dry run into .goreleaser/
@@ -93,7 +93,7 @@ git tag -a v0.2.0 -m "v0.2.0"
 git push origin v0.2.0
 ```
 
-The current version is `0.2.0`; `make build` and `make dist` inject it through `-ldflags`. Release assets are named `hutch_<os>_<arch>` without a version, so `/releases/latest/download/` URLs stay stable across releases.
+The current version is `0.2.0`; `make build` and `make dist` inject it through `-ldflags`. Release assets are named `tinyhutch_<os>_<arch>` without a version, so `/releases/latest/download/` URLs stay stable across releases.
 
 ## License
 

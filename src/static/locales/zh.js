@@ -1,8 +1,8 @@
 'use strict';
 
-window.HutchLocales = window.HutchLocales || {};
+window.TinyHutchLocales = window.TinyHutchLocales || {};
 
-window.HutchLocales.zh = {
+window.TinyHutchLocales.zh = {
   "meta.name": "中文",
   "meta.short": "中文",
   "nav.home": "首页",

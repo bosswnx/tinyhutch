@@ -29,7 +29,7 @@ let uploadSeq = 0;
 /* ---------- api ---------- */
 
 async function api(path, opts = {}) {
-  const headers = Object.assign({ 'X-Requested-With': 'hutch' }, opts.headers || {});
+  const headers = Object.assign({ 'X-Requested-With': 'tinyhutch' }, opts.headers || {});
   if (opts.body && typeof opts.body === 'string') headers['Content-Type'] = 'application/json';
   const res = await fetch(path, Object.assign({}, opts, { headers, credentials: 'same-origin' }));
   let data = null;
@@ -953,7 +953,7 @@ function putFile(item, overwrite) {
     item.xhr = xhr;
     xhr.open('PUT', '/api/file?path=' + encodeURIComponent(item.dir) +
       '&name=' + encodeURIComponent(item.name) + '&overwrite=' + (overwrite ? 1 : 0));
-    xhr.setRequestHeader('X-Requested-With', 'hutch');
+    xhr.setRequestHeader('X-Requested-With', 'tinyhutch');
     xhr.upload.onprogress = e => {
       if (e.lengthComputable) {
         item.progress = e.loaded / e.total;

@@ -13,7 +13,7 @@ TinyHutch 是一个**简单、单二进制、零依赖、自托管**的网页文
 ## 为什么选 TinyHutch
 
 - **一个文件，零依赖**：约 7 MB 的 Go 可执行文件，支持 Linux 和 macOS（amd64/arm64），不需要 Node、PHP、Python，也不需要数据库。
-- **简单**：`./hutch /srv/files` 就能跑起来，首次启动自动生成 `config.json`。
+- **简单**：`./tinyhutch /srv/files` 就能跑起来，首次启动自动生成 `config.json`。
 - **按路径加锁**：可以为单个文件或整个目录树设置独立密码，解锁一个路径不会连带解锁其他路径。
 - **方便分享**：复制任意文件的下载链接，或把整个目录打包成 zip 下载；链接可以直接用于脚本和 `curl`。
 - **用着舒服**：移动端适配、深色模式、中英文界面。
@@ -24,16 +24,16 @@ TinyHutch 是一个**简单、单二进制、零依赖、自托管**的网页文
 从 [Releases](https://github.com/bosswnx/tinyhutch/releases/latest) 下载对应平台的二进制文件，然后：
 
 ```bash
-chmod +x hutch_linux_amd64
-./hutch_linux_amd64 /path/to/files
+chmod +x tinyhutch_linux_amd64
+./tinyhutch_linux_amd64 /path/to/files
 ```
 
 TinyHutch 默认将当前目录作为工作目录，监听 `127.0.0.1:5000`，并在工作目录下生成 `config.json`。
 
 ```bash
-./hutch                      # 默认将当前目录作为工作目录
-./hutch /srv/files           # 指定工作目录
-./hutch --config my.json     # 指定配置文件
+./tinyhutch                      # 默认将当前目录作为工作目录
+./tinyhutch /srv/files           # 指定工作目录
+./tinyhutch --config my.json     # 指定配置文件
 ```
 
 打开 <http://127.0.0.1:5000>。
@@ -78,7 +78,7 @@ TinyHutch 默认从工作目录读取 `config.json`，也可以用 `--config` �
 需要 Go ≥ 1.25。
 
 ```bash
-make build    # 本机二进制 dist/hutch
+make build    # 本机二进制 dist/tinyhutch
 make test     # 单元 + 集成测试
 make dist     # linux/amd64、linux/arm64、darwin/amd64、darwin/arm64
 make snapshot # 本地 GoReleaser 试构建，输出到 .goreleaser/
@@ -93,7 +93,7 @@ git tag -a v0.2.0 -m "v0.2.0"
 git push origin v0.2.0
 ```
 
-当前版本为 `0.2.0`，`make build` 和 `make dist` 会通过 `-ldflags` 注入该版本号。发布产物统一命名为 `hutch_<os>_<arch>`，不带版本号，因此 `/releases/latest/download/` 链接在后续版本中保持有效。
+当前版本为 `0.2.0`，`make build` 和 `make dist` 会通过 `-ldflags` 注入该版本号。发布产物统一命名为 `tinyhutch_<os>_<arch>`，不带版本号，因此 `/releases/latest/download/` 链接在后续版本中保持有效。
 
 ## 许可证
 

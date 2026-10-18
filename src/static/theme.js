@@ -10,7 +10,7 @@ function updateThemeIcon() {
 }
 
 function applyTheme() {
-  const saved = localStorage.getItem('hutch-theme');
+  const saved = localStorage.getItem('tinyhutch-theme');
   const dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   updateThemeIcon();
@@ -19,6 +19,6 @@ function applyTheme() {
 function toggleTheme() {
   const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   document.documentElement.dataset.theme = next;
-  localStorage.setItem('hutch-theme', next);
+  localStorage.setItem('tinyhutch-theme', next);
   updateThemeIcon();
 }

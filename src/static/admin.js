@@ -13,7 +13,7 @@ let adminPasswordSet = false;
 let pwMode = null;
 
 async function api(path, opts = {}) {
-  const headers = Object.assign({ 'X-Requested-With': 'hutch' }, opts.headers || {});
+  const headers = Object.assign({ 'X-Requested-With': 'tinyhutch' }, opts.headers || {});
   if (opts.body && typeof opts.body === 'string') headers['Content-Type'] = 'application/json';
   const res = await fetch(path, Object.assign({}, opts, { headers, credentials: 'same-origin' }));
   let data = null;
@@ -326,7 +326,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#btn-theme').addEventListener('click', () => {
     const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
-    localStorage.setItem('hutch-theme', next);
+    localStorage.setItem('tinyhutch-theme', next);
   });
 
   $('#pw-add').addEventListener('click', () => openPasswordForm('add'));

@@ -49,7 +49,7 @@ func newTestEnv(t *testing.T, rules []Rule) *testEnv {
 	if err := saveConfig(configPath, cfg); err != nil {
 		t.Fatal(err)
 	}
-	secretPath := filepath.Join(dir, ".hutch.secret")
+	secretPath := filepath.Join(dir, ".tinyhutch.secret")
 	secret := []byte("0123456789abcdef0123456789abcdef")
 	if err := os.WriteFile(secretPath, secret, 0o600); err != nil {
 		t.Fatal(err)
@@ -106,7 +106,7 @@ func (e *testEnv) do(c *http.Client, method, path, body string) (*http.Response,
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	req.Header.Set("X-Requested-With", "hutch")
+	req.Header.Set("X-Requested-With", "tinyhutch")
 	if strings.HasPrefix(body, "{") || strings.HasPrefix(body, "[") {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -613,7 +613,7 @@ func TestDeleteUndo(t *testing.T) {
 	if resp, _ := e.anon("GET", "/api/download?path=/hello.txt", ""); resp.StatusCode != 404 {
 		t.Fatal("file still exists after delete")
 	}
-	if resp, _ := e.anon("GET", "/api/download?path=/.hutch-trash", ""); resp.StatusCode != 404 {
+	if resp, _ := e.anon("GET", "/api/download?path=/.tinyhutch-trash", ""); resp.StatusCode != 404 {
 		t.Fatal("trash is web-accessible")
 	}
 
@@ -663,7 +663,7 @@ func TestDeleteBatchAndUndoConflict(t *testing.T) {
 		t.Fatalf("settings: %d %s", resp.StatusCode, body)
 	}
 	resp, body = e.do(e.client, "GET", "/api/list?path=/", "")
-	if strings.Contains(string(body), ".hutch-trash") {
+	if strings.Contains(string(body), ".tinyhutch-trash") {
 		t.Fatalf("trash listed: %s", body)
 	}
 }
@@ -809,7 +809,7 @@ func TestRulePasswordChangeRelocks(t *testing.T) {
 
 func TestProtectedAndHiddenFiles(t *testing.T) {
 	e := newTestEnv(t, nil)
-	for _, p := range []string{"/config.json", "/config.json.bak", "/.hutch.secret"} {
+	for _, p := range []string{"/config.json", "/config.json.bak", "/.tinyhutch.secret"} {
 		if resp, _ := e.anon("GET", "/api/download?path="+p, ""); resp.StatusCode != 404 {
 			t.Errorf("%s: %d, want 404", p, resp.StatusCode)
 		}
@@ -829,7 +829,7 @@ func TestProtectedAndHiddenFiles(t *testing.T) {
 	if !strings.Contains(string(body), ".env") {
 		t.Fatalf("hidden file should be listed when enabled: %s", body)
 	}
-	if strings.Contains(string(body), `"config.json"`) || strings.Contains(string(body), ".hutch.secret") {
+	if strings.Contains(string(body), `"config.json"`) || strings.Contains(string(body), ".tinyhutch.secret") {
 		t.Fatalf("protected files must never be listed: %s", body)
 	}
 }

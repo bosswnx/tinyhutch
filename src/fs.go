@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	uploadTempPrefix = ".hutch-upload-"
-	trashDir         = ".hutch-trash"
+	uploadTempPrefix = ".tinyhutch-upload-"
+	trashDir         = ".tinyhutch-trash"
 	maxListEntries   = 5000
 )
 
@@ -63,7 +63,7 @@ func newFileSystem(cwd, configPath, secretPath string) (*fileSystem, error) {
 	// Default names are always protected, even if --config points elsewhere.
 	for _, name := range []string{
 		"config.json", "config.json.bak", "config.json.tmp",
-		".hutch.secret",
+		".tinyhutch.secret",
 	} {
 		add(filepath.Join(cwd, name))
 	}

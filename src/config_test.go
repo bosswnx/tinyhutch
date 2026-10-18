@@ -209,7 +209,7 @@ func mustRead(t *testing.T, p string) []byte {
 
 func TestEnsureSecret(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, ".hutch.secret")
+	path := filepath.Join(dir, ".tinyhutch.secret")
 	s1, err := ensureSecret(path)
 	if err != nil {
 		t.Fatal(err)

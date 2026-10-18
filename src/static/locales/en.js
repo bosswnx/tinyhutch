@@ -1,8 +1,8 @@
 'use strict';
 
-window.HutchLocales = window.HutchLocales || {};
+window.TinyHutchLocales = window.TinyHutchLocales || {};
 
-window.HutchLocales.en = {
+window.TinyHutchLocales.en = {
   "meta.name": "English",
   "meta.short": "EN",
   "nav.home": "Home",

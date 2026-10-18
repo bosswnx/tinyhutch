@@ -10,9 +10,9 @@ before:
     - go test ./...
 
 builds:
-  - id: hutch
+  - id: tinyhutch
     main: ./src
-    binary: hutch
+    binary: tinyhutch
     env:
       - CGO_ENABLED=0
     flags:
@@ -35,7 +35,7 @@ archives:
     formats:
       - binary
     # No version in the asset name so /releases/latest/download/ URLs stay stable.
-    name_template: "hutch_{{ .Os }}_{{ .Arch }}"
+    name_template: "tinyhutch_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: SHA256SUMS
