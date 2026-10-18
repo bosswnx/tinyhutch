@@ -30,13 +30,20 @@ builds:
       - arm64
 
 archives:
-  - formats:
+  - id: archives
+    formats:
       - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
       - README.zh.md
       - config.example.json
+
+  # Also publish the raw executable, so it can be downloaded and used directly.
+  - id: binaries
+    formats:
+      - binary
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: SHA256SUMS
