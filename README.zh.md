@@ -17,7 +17,6 @@ TinyHutch 是一个**简单、单二进制、零依赖、自托管**的网页文
 - **按路径加锁**：可以为单个文件或整个目录树设置独立密码，解锁一个路径不会连带解锁其他路径。
 - **方便分享**：复制任意文件的下载链接，或把整个目录打包成 zip 下载；链接可以直接用于脚本和 `curl`。
 - **用着舒服**：移动端适配、深色模式、中英文界面。
-- **该有的操作都有**：限制单文件大小的上传、拖拽移动、重命名、新建目录、误删后立即撤销、当前目录过滤。
 
 ## 快速开始
 
@@ -83,17 +82,6 @@ make test     # 单元 + 集成测试
 make dist     # linux/amd64、linux/arm64、darwin/amd64、darwin/arm64
 make snapshot # 本地 GoReleaser 试构建，输出到 .goreleaser/
 ```
-
-## 发布
-
-发布遵循语义化版本（SemVer），以 Git tag 为准。推送 `v*` tag 后，GitHub Actions 会自动运行 GoReleaser，构建 Unix 可执行文件，并和 `SHA256SUMS` 一起发布到 GitHub Releases。
-
-```bash
-git tag -a v0.2.0 -m "v0.2.0"
-git push origin v0.2.0
-```
-
-当前版本为 `0.2.0`，`make build` 和 `make dist` 会通过 `-ldflags` 注入该版本号。发布产物统一命名为 `tinyhutch_<os>_<arch>`，不带版本号，因此 `/releases/latest/download/` 链接在后续版本中保持有效。
 
 ## 许可证
 

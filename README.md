@@ -17,7 +17,6 @@ TinyHutch is a **simple, single-binary, self-hosted file manager**. Point it at 
 - **Per-path password locks.** Lock a file or a whole directory subtree with its own password. Unlocking one path does not unlock the rest.
 - **Built for sharing.** Copy a download link for any file, or zip and download a whole folder. Links work in scripts and with `curl`.
 - **Comfortable UI.** Mobile layout, dark mode, and English/Chinese support.
-- **Practical file operations.** Upload with a configurable size limit, drag to move, rename, create folders, undo a delete right after it happens, and filter the current directory.
 
 ## Quick start
 
@@ -83,17 +82,6 @@ make test     # unit + integration tests
 make dist     # linux/amd64, linux/arm64, darwin/amd64, darwin/arm64
 make snapshot # local GoReleaser dry run into .goreleaser/
 ```
-
-## Release
-
-Releases follow Semantic Versioning and are driven by Git tags. Pushing a `v*` tag runs GoReleaser in GitHub Actions, builds the Unix executables, and publishes them together with `SHA256SUMS` on GitHub Releases.
-
-```bash
-git tag -a v0.2.0 -m "v0.2.0"
-git push origin v0.2.0
-```
-
-The current version is `0.2.0`; `make build` and `make dist` inject it through `-ldflags`. Release assets are named `tinyhutch_<os>_<arch>` without a version, so `/releases/latest/download/` URLs stay stable across releases.
 
 ## License
 
