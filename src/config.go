@@ -60,7 +60,7 @@ func (c *Config) sessionDuration() time.Duration {
 
 func applyDefaults(c *Config) {
 	if c.SiteName == "" {
-		c.SiteName = "TinyFM"
+		c.SiteName = "TinyHutch"
 	}
 	if c.ListenHost == "" {
 		c.ListenHost = "127.0.0.1"

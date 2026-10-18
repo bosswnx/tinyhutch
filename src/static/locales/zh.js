@@ -1,8 +1,8 @@
 'use strict';
 
-window.TinyFMLocales = window.TinyFMLocales || {};
+window.HutchLocales = window.HutchLocales || {};
 
-window.TinyFMLocales.zh = {
+window.HutchLocales.zh = {
   "meta.name": "中文",
   "meta.short": "中文",
   "nav.home": "首页",
@@ -121,7 +121,7 @@ window.TinyFMLocales.zh = {
   "api.rate_limited": "尝试过多，请稍后再试",
   "api.internal": "服务端错误",
   "api.config_busy": "配置保存冲突",
-  "admin.page_title": "TinyFM 后台",
+  "admin.page_title": "TinyHutch 后台",
   "admin.heading": "后台管理",
   "admin.logout": "退出登录",
   "admin.password_heading": "管理密码",

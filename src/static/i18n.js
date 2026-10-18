@@ -1,17 +1,17 @@
 'use strict';
 
 /*
- * TinyFM i18n: language selection and helpers.
+ * TinyHutch i18n: language selection and helpers.
  * All translations live in locales/<lang>.js so this file stays logic-only.
  */
 
-const I18N = window.TinyFMLocales || {};
+const I18N = window.HutchLocales || {};
 const I18N_LANGS = Object.keys(I18N);
 const I18N_BASE = 'zh';
 const HTML_LANG = { zh: 'zh-CN', en: 'en' };
 
 let currentLang = (() => {
-  const saved = localStorage.getItem('tinyfm-lang');
+  const saved = localStorage.getItem('hutch-lang');
   if (saved && I18N_LANGS.includes(saved)) return saved;
   const short = (navigator.language || '').toLowerCase().split('-')[0];
   if (I18N_LANGS.includes(short)) return short;
@@ -86,7 +86,7 @@ function applyI18n(root = document) {
 function setLang(lang) {
   if (!I18N_LANGS.includes(lang) || lang === currentLang) return;
   currentLang = lang;
-  localStorage.setItem('tinyfm-lang', lang);
+  localStorage.setItem('hutch-lang', lang);
   document.documentElement.lang = HTML_LANG[lang] || lang;
   applyI18n();
   if (langChangeHandler) langChangeHandler();

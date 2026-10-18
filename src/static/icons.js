@@ -2,7 +2,7 @@
 
 /*
  * Icon set: Lucide (https://lucide.dev), ISC License.
- * Paths are inlined so TinyFM stays a single binary with no external requests.
+ * Paths are inlined so TinyHutch stays a single binary with no external requests.
  */
 
 const ICONS = {

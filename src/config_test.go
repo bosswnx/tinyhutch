@@ -22,7 +22,7 @@ func TestConfigCreateAndReload(t *testing.T) {
 	if cfg.AdminPassword != "" {
 		t.Fatalf("admin_password should default to empty, got %q", cfg.AdminPassword)
 	}
-	if cfg.SiteName != "TinyFM" || cfg.SessionHours != defaultSessionHours || cfg.MaxUploadMB != defaultMaxUploadMB {
+	if cfg.SiteName != "TinyHutch" || cfg.SessionHours != defaultSessionHours || cfg.MaxUploadMB != defaultMaxUploadMB {
 		t.Fatalf("defaults not applied: %+v", cfg)
 	}
 	if cfg.ListenHost != "127.0.0.1" || cfg.ListenPort != 8080 || cfg.LogLevel != "info" || cfg.InsecureCookie || cfg.TrustProxy {
@@ -39,7 +39,7 @@ func TestConfigCreateAndReload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(raw), `"site_name": "TinyFM"`) {
+	if !strings.Contains(string(raw), `"site_name": "TinyHutch"`) {
 		t.Fatalf("config is not JSON:\n%s", raw)
 	}
 
@@ -65,7 +65,7 @@ func TestConfigUnknownField(t *testing.T) {
 
 func TestConfigMissingFields(t *testing.T) {
 	full := map[string]any{
-		"site_name":       "TinyFM",
+		"site_name":       "TinyHutch",
 		"listen_host":     "127.0.0.1",
 		"listen_port":     8080,
 		"admin_password":  "pw",
@@ -209,7 +209,7 @@ func mustRead(t *testing.T, p string) []byte {
 
 func TestEnsureSecret(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, ".tinyfm.secret")
+	path := filepath.Join(dir, ".hutch.secret")
 	s1, err := ensureSecret(path)
 	if err != nil {
 		t.Fatal(err)

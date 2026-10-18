@@ -1,8 +1,8 @@
 'use strict';
 
-window.TinyFMLocales = window.TinyFMLocales || {};
+window.HutchLocales = window.HutchLocales || {};
 
-window.TinyFMLocales.en = {
+window.HutchLocales.en = {
   "meta.name": "English",
   "meta.short": "EN",
   "nav.home": "Home",
@@ -121,7 +121,7 @@ window.TinyFMLocales.en = {
   "api.rate_limited": "Too many attempts, try again later",
   "api.internal": "Server error",
   "api.config_busy": "Config save conflict",
-  "admin.page_title": "TinyFM Admin",
+  "admin.page_title": "TinyHutch Admin",
   "admin.heading": "Admin",
   "admin.logout": "Log out",
   "admin.password_heading": "Admin password",

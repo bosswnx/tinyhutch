@@ -1,6 +1,6 @@
 version: 2
 
-project_name: tinyfm
+project_name: tinyhutch
 
 # Keep release artifacts away from the local dist/ directory.
 dist: .goreleaser
@@ -10,9 +10,9 @@ before:
     - go test ./...
 
 builds:
-  - id: tinyfm
+  - id: hutch
     main: ./src
-    binary: tinyfm
+    binary: hutch
     env:
       - CGO_ENABLED=0
     flags:
@@ -34,7 +34,8 @@ archives:
   - id: binaries
     formats:
       - binary
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # No version in the asset name so /releases/latest/download/ URLs stay stable.
+    name_template: "hutch_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: SHA256SUMS

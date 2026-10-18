@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	cookieName  = "tinyfm_session"
+	cookieName  = "hutch_session"
 	maxUnlocked = 64
 )
 

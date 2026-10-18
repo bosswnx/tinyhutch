@@ -39,7 +39,7 @@ func newTestEnv(t *testing.T, rules []Rule) *testEnv {
 
 	configPath := filepath.Join(dir, "config.json")
 	cfg := &Config{
-		SiteName:       "TinyFM",
+		SiteName:       "TinyHutch",
 		AdminPassword:  "adminpw",
 		Rules:          rules,
 		SessionHours:   12,
@@ -49,7 +49,7 @@ func newTestEnv(t *testing.T, rules []Rule) *testEnv {
 	if err := saveConfig(configPath, cfg); err != nil {
 		t.Fatal(err)
 	}
-	secretPath := filepath.Join(dir, ".tinyfm.secret")
+	secretPath := filepath.Join(dir, ".hutch.secret")
 	secret := []byte("0123456789abcdef0123456789abcdef")
 	if err := os.WriteFile(secretPath, secret, 0o600); err != nil {
 		t.Fatal(err)
@@ -106,7 +106,7 @@ func (e *testEnv) do(c *http.Client, method, path, body string) (*http.Response,
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	req.Header.Set("X-Requested-With", "tinyfm")
+	req.Header.Set("X-Requested-With", "hutch")
 	if strings.HasPrefix(body, "{") || strings.HasPrefix(body, "[") {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -613,7 +613,7 @@ func TestDeleteUndo(t *testing.T) {
 	if resp, _ := e.anon("GET", "/api/download?path=/hello.txt", ""); resp.StatusCode != 404 {
 		t.Fatal("file still exists after delete")
 	}
-	if resp, _ := e.anon("GET", "/api/download?path=/.tinyfm-trash", ""); resp.StatusCode != 404 {
+	if resp, _ := e.anon("GET", "/api/download?path=/.hutch-trash", ""); resp.StatusCode != 404 {
 		t.Fatal("trash is web-accessible")
 	}
 
@@ -659,11 +659,11 @@ func TestDeleteBatchAndUndoConflict(t *testing.T) {
 	}
 
 	// Trash must stay hidden even with show_hidden enabled.
-	if resp, body := e.do(e.client, "PUT", "/api/admin/settings", `{"site_name":"TinyFM","session_hours":12,"max_upload_mb":10,"show_hidden":true}`); resp.StatusCode != 200 {
+	if resp, body := e.do(e.client, "PUT", "/api/admin/settings", `{"site_name":"TinyHutch","session_hours":12,"max_upload_mb":10,"show_hidden":true}`); resp.StatusCode != 200 {
 		t.Fatalf("settings: %d %s", resp.StatusCode, body)
 	}
 	resp, body = e.do(e.client, "GET", "/api/list?path=/", "")
-	if strings.Contains(string(body), ".tinyfm-trash") {
+	if strings.Contains(string(body), ".hutch-trash") {
 		t.Fatalf("trash listed: %s", body)
 	}
 }
@@ -809,7 +809,7 @@ func TestRulePasswordChangeRelocks(t *testing.T) {
 
 func TestProtectedAndHiddenFiles(t *testing.T) {
 	e := newTestEnv(t, nil)
-	for _, p := range []string{"/config.json", "/config.json.bak", "/.tinyfm.secret"} {
+	for _, p := range []string{"/config.json", "/config.json.bak", "/.hutch.secret"} {
 		if resp, _ := e.anon("GET", "/api/download?path="+p, ""); resp.StatusCode != 404 {
 			t.Errorf("%s: %d, want 404", p, resp.StatusCode)
 		}
@@ -821,7 +821,7 @@ func TestProtectedAndHiddenFiles(t *testing.T) {
 
 	e.loginAdmin()
 	resp, body := e.do(e.client, "PUT", "/api/admin/settings",
-		`{"site_name":"TinyFM","session_hours":12,"max_upload_mb":10,"show_hidden":true}`)
+		`{"site_name":"TinyHutch","session_hours":12,"max_upload_mb":10,"show_hidden":true}`)
 	if resp.StatusCode != 200 {
 		t.Fatalf("settings: %d %s", resp.StatusCode, body)
 	}
@@ -829,7 +829,7 @@ func TestProtectedAndHiddenFiles(t *testing.T) {
 	if !strings.Contains(string(body), ".env") {
 		t.Fatalf("hidden file should be listed when enabled: %s", body)
 	}
-	if strings.Contains(string(body), `"config.json"`) || strings.Contains(string(body), ".tinyfm.secret") {
+	if strings.Contains(string(body), `"config.json"`) || strings.Contains(string(body), ".hutch.secret") {
 		t.Fatalf("protected files must never be listed: %s", body)
 	}
 }
@@ -875,7 +875,7 @@ func TestUploadLimit(t *testing.T) {
 	e := newTestEnv(t, nil)
 	e.loginAdmin()
 	resp, body := e.do(e.client, "PUT", "/api/admin/settings",
-		`{"site_name":"TinyFM","session_hours":12,"max_upload_mb":1,"show_hidden":false}`)
+		`{"site_name":"TinyHutch","session_hours":12,"max_upload_mb":1,"show_hidden":false}`)
 	if resp.StatusCode != 200 {
 		t.Fatalf("settings: %d %s", resp.StatusCode, body)
 	}

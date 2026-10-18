@@ -14,7 +14,7 @@ const state = {
   entries: [],
   admin: false,
   adminPasswordSet: true,
-  siteName: 'TinyFM',
+  siteName: 'TinyHutch',
   filter: '',
   sort: { key: 'name', dir: 1 },
   queue: [],
@@ -29,7 +29,7 @@ let uploadSeq = 0;
 /* ---------- api ---------- */
 
 async function api(path, opts = {}) {
-  const headers = Object.assign({ 'X-Requested-With': 'tinyfm' }, opts.headers || {});
+  const headers = Object.assign({ 'X-Requested-With': 'hutch' }, opts.headers || {});
   if (opts.body && typeof opts.body === 'string') headers['Content-Type'] = 'application/json';
   const res = await fetch(path, Object.assign({}, opts, { headers, credentials: 'same-origin' }));
   let data = null;
@@ -108,7 +108,7 @@ async function refreshSession() {
   const s = await api('/api/session');
   state.admin = !!s.admin;
   state.adminPasswordSet = !!s.admin_password_set;
-  state.siteName = s.site_name || 'TinyFM';
+  state.siteName = s.site_name || 'TinyHutch';
   $('#site-name').textContent = state.siteName;
   document.title = state.siteName;
   $('#btn-upload').classList.toggle('hidden', !state.admin);
@@ -953,7 +953,7 @@ function putFile(item, overwrite) {
     item.xhr = xhr;
     xhr.open('PUT', '/api/file?path=' + encodeURIComponent(item.dir) +
       '&name=' + encodeURIComponent(item.name) + '&overwrite=' + (overwrite ? 1 : 0));
-    xhr.setRequestHeader('X-Requested-With', 'tinyfm');
+    xhr.setRequestHeader('X-Requested-With', 'hutch');
     xhr.upload.onprogress = e => {
       if (e.lengthComputable) {
         item.progress = e.loaded / e.total;

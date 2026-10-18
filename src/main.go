@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	version = "0.1.1"
+	version = "0.2.0"
 	commit  = "none"
 	date    = "unknown"
 )
@@ -97,7 +97,7 @@ func parseArgs(args []string, cwd string) (rootDir string, err error) {
 	case 1:
 		return resolveDir(args[0], cwd)
 	default:
-		return "", errors.New("参数过多，用法: tinyfm [选项] [目录]")
+		return "", errors.New("参数过多，用法: hutch [选项] [目录]")
 	}
 }
 
@@ -140,7 +140,7 @@ func main() {
 	flag.CommandLine.Parse(reorderArgs(os.Args[1:]))
 
 	if *showVersion {
-		fmt.Printf("tinyfm %s (commit %s, built %s)\n", version, commit, date)
+		fmt.Printf("hutch %s (commit %s, built %s)\n", version, commit, date)
 		return
 	}
 
@@ -166,7 +166,7 @@ func main() {
 
 	configPath := resolveConfigPath(rootDir, *configFlag, cwd)
 
-	secretPath := filepath.Join(rootDir, ".tinyfm.secret")
+	secretPath := filepath.Join(rootDir, ".hutch.secret")
 	secret, err := ensureSecret(secretPath)
 	if err != nil {
 		slog.Error("读取或生成会话密钥失败", "err", err)
@@ -214,7 +214,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("TinyFM %s 已启动  →  %s\n", version, accessURL(ln.Addr()))
+	fmt.Printf("TinyHutch %s 已启动  →  %s\n", version, accessURL(ln.Addr()))
 	slog.Debug("启动参数", "version", version, "root", rootDir, "config", configPath, "listen", cfg.ListenAddr())
 
 	if created {

@@ -143,7 +143,7 @@ func (s *server) middleware(next http.Handler) http.Handler {
 		}()
 
 		if isUnsafeMethod(r.Method) {
-			if r.Header.Get("X-Requested-With") != "tinyfm" {
+			if r.Header.Get("X-Requested-With") != "hutch" {
 				writeError(sw, 403, "forbidden", "缺少请求头")
 				return
 			}
@@ -682,7 +682,7 @@ func (s *server) handleZip(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "tinyfm.zip"}))
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "hutch.zip"}))
 	w.Header().Set("Cache-Control", "no-store")
 	zw := zip.NewWriter(w)
 	defer zw.Close()
