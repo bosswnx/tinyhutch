@@ -1,4 +1,4 @@
-# TinyFM 文档
+# TinyFM
 
 [English](README.md) | **中文**
 
@@ -32,12 +32,10 @@ TinyFM 有以下特色：
 
 配置文件模板为 `config.example.json`，内容如下：
 
-```
-
 | 字段 | 说明 |
 |---|---|
 | `site_name` | 浏览器标题和顶栏名称 |
-| `listen_host | 监听地址 |
+| `listen_host` | 监听地址 |
 | `listen_port` | 监听端口 |
 | `admin_password` | 管理密码；为空时则点击直接登录 |
 | `session_hours` | 会话有效期（小时）|
@@ -47,7 +45,6 @@ TinyFM 有以下特色：
 | `trust_proxy` | 信任 `X-Forwarded-For`；仅放在可信反向代理后开启 |
 | `insecure_cookie` | 本地 HTTP 调试时使用非 Secure Cookie；生产部署保持 `false` |
 | `rules` | 权限规则列表 |
-```
 
 ## 构建
 

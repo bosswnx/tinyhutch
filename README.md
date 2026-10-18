@@ -1,4 +1,4 @@
-# TinyFM Documentation
+# TinyFM
 
 **English** | [中文](README.zh.md)
 
