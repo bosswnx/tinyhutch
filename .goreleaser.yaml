@@ -43,10 +43,25 @@ checksum:
 changelog:
   sort: asc
   filters:
+    # Conventional-commit types that are noise on a release page. The scope and
+    # the breaking-change bang are optional, so this matches `docs: ...`,
+    # `chore(release): ...` and `refactor!: ...` alike — a bare `^chore:` only
+    # matched the unscoped form and let `chore(release):` through.
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
+      - '^(docs|test|chore|ci|build|style|refactor)(\(.*\))?!?:'
+      - '^Merge '
 
 release:
   prerelease: auto
+  # Shown above the changelog on every release page. Deliberately release
+  # agnostic: the assets are always raw executables with the same names.
+  header: |
+    Raw executables for Linux and macOS (amd64/arm64) — nothing to unpack.
+
+    ```bash
+    sha256sum -c SHA256SUMS --ignore-missing   # macOS: shasum -a 256 -c SHA256SUMS
+    chmod +x tinyhutch_linux_amd64
+    ./tinyhutch_linux_amd64 /path/to/files     # serves http://127.0.0.1:7500
+    ```
+
+    Docker and reverse-proxy notes are in the [README](https://github.com/bosswnx/tinyhutch#docker).
