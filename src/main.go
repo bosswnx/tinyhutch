@@ -57,8 +57,8 @@ func accessURL(addr net.Addr) string {
 
 func usage() {
 	out := flag.CommandLine.Output()
-	fmt.Fprintf(out, "用法:\n  %s [选项] [目录]\n\n", os.Args[0])
-	fmt.Fprintln(out, "目录缺省为启动时的当前目录；选项可以放在目录前后。")
+	fmt.Fprintf(out, "Usage:\n  %s [options] [directory]\n\n", os.Args[0])
+	fmt.Fprintln(out, "The directory defaults to the current working directory; options may go before or after it.")
 	fmt.Fprintln(out)
 	flag.PrintDefaults()
 }
@@ -89,7 +89,7 @@ func reorderArgs(argv []string) []string {
 	return append(flags, positionals...)
 }
 
-// parseArgs interprets the single optional positional argument: "[目录]".
+// parseArgs interprets the single optional positional argument: "[directory]".
 func parseArgs(args []string, cwd string) (rootDir string, err error) {
 	switch len(args) {
 	case 0:
@@ -97,7 +97,7 @@ func parseArgs(args []string, cwd string) (rootDir string, err error) {
 	case 1:
 		return resolveDir(args[0], cwd)
 	default:
-		return "", errors.New("参数过多，用法: tinyhutch [选项] [目录]")
+		return "", errors.New("too many arguments; usage: tinyhutch [options] [directory]")
 	}
 }
 
@@ -109,17 +109,17 @@ func resolveDir(p, cwd string) (string, error) {
 	info, err := os.Stat(p)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return "", fmt.Errorf("目录不存在: %s", p)
+			return "", fmt.Errorf("directory not found: %s", p)
 		}
-		return "", fmt.Errorf("无法访问目录 %s: %w", p, err)
+		return "", fmt.Errorf("cannot access directory %s: %w", p, err)
 	}
 	if !info.IsDir() {
-		return "", fmt.Errorf("不是目录: %s", p)
+		return "", fmt.Errorf("not a directory: %s", p)
 	}
 	return p, nil
 }
 
-// resolveConfigPath returns --config when set, otherwise <目录>/config.json.
+// resolveConfigPath returns --config when set, otherwise <directory>/config.json.
 func resolveConfigPath(rootDir, override, cwd string) string {
 	if override == "" {
 		return filepath.Join(rootDir, "config.json")
@@ -133,8 +133,8 @@ func resolveConfigPath(rootDir, override, cwd string) string {
 
 func main() {
 	var (
-		configFlag  = flag.String("config", "", "配置文件路径（默认 <目录>/config.json）")
-		showVersion = flag.Bool("version", false, "打印版本后退出")
+		configFlag  = flag.String("config", "", "path to the config file (default <directory>/config.json)")
+		showVersion = flag.Bool("version", false, "print the version and exit")
 	)
 	flag.Usage = usage
 	flag.CommandLine.Parse(reorderArgs(os.Args[1:]))
@@ -148,12 +148,12 @@ func main() {
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		slog.Error("无法获取当前目录", "err", err)
+		slog.Error("cannot get the current directory", "err", err)
 		os.Exit(1)
 	}
 	cwd, err = filepath.Abs(cwd)
 	if err != nil {
-		slog.Error("无法解析当前目录", "err", err)
+		slog.Error("cannot resolve the current directory", "err", err)
 		os.Exit(1)
 	}
 
@@ -169,20 +169,20 @@ func main() {
 	secretPath := filepath.Join(rootDir, ".tinyhutch.secret")
 	secret, err := ensureSecret(secretPath)
 	if err != nil {
-		slog.Error("读取或生成会话密钥失败", "err", err)
+		slog.Error("cannot read or create the session secret", "err", err)
 		os.Exit(1)
 	}
 
 	cm := newConfigManager(configPath, secret)
 	created, err := cm.Load()
 	if err != nil {
-		slog.Error("加载配置失败", "err", err)
+		slog.Error("cannot load the config", "err", err)
 		os.Exit(1)
 	}
 
 	files, err := newFileSystem(rootDir, configPath, secretPath)
 	if err != nil {
-		slog.Error("打开根目录失败", "err", err)
+		slog.Error("cannot open the root directory", "err", err)
 		os.Exit(1)
 	}
 	defer files.Close()
@@ -210,26 +210,26 @@ func main() {
 	}
 	ln, err := net.Listen("tcp", cfg.ListenAddr())
 	if err != nil {
-		slog.Error("监听失败", "addr", cfg.ListenAddr(), "err", err)
+		slog.Error("cannot listen", "addr", cfg.ListenAddr(), "err", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("TinyHutch %s 已启动  →  %s\n", version, accessURL(ln.Addr()))
-	slog.Debug("启动参数", "version", version, "root", rootDir, "config", configPath, "listen", cfg.ListenAddr())
+	fmt.Printf("TinyHutch %s is running  →  %s\n", version, accessURL(ln.Addr()))
+	slog.Debug("startup", "version", version, "root", rootDir, "config", configPath, "listen", cfg.ListenAddr())
 
 	if created {
-		slog.Info("首次启动，已生成配置文件", "path", configPath)
+		slog.Info("first start: created the config file", "path", configPath)
 	}
 	if cfg.AdminPassword == "" {
-		slog.Warn("admin_password 为空：任何点击登录的人都会获得管理员权限")
+		slog.Warn("admin_password is empty: anyone who clicks Login becomes an admin")
 	}
 
 	go func() {
 		files.cleanupTrash()
 		if n, err := files.cleanupOldUploads(24 * time.Hour); err != nil {
-			slog.Warn("清理上传临时文件失败", "err", err)
+			slog.Warn("failed to clean up temporary upload files", "err", err)
 		} else if n > 0 {
-			slog.Info("已清理过期的上传临时文件", "count", n)
+			slog.Info("cleaned up stale temporary upload files", "count", n)
 		}
 	}()
 
@@ -244,15 +244,15 @@ func main() {
 	select {
 	case err := <-errCh:
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("HTTP 服务退出", "err", err)
+			slog.Error("HTTP server exited", "err", err)
 			os.Exit(1)
 		}
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		if err := httpSrv.Shutdown(shutdownCtx); err != nil {
-			slog.Warn("优雅退出超时", "err", err)
+			slog.Warn("graceful shutdown timed out", "err", err)
 		}
-		slog.Info("已停止")
+		slog.Info("stopped")
 	}
 }

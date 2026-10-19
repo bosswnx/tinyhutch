@@ -102,7 +102,7 @@ func TestConfigMissingFields(t *testing.T) {
 			if err == nil {
 				t.Fatalf("missing %q should fail", key)
 			}
-			if !strings.Contains(err.Error(), "配置缺少字段") || !strings.Contains(err.Error(), key) {
+			if !strings.Contains(err.Error(), "config is missing fields") || !strings.Contains(err.Error(), key) {
 				t.Fatalf("error = %v, want mention of %q", err, key)
 			}
 		})

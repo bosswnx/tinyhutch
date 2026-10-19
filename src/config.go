@@ -85,30 +85,30 @@ func applyDefaults(c *Config) {
 func validateConfig(c *Config) error {
 	applyDefaults(c)
 	if len(c.SiteName) > 100 {
-		return errors.New("site_name 过长")
+		return errors.New("site_name is too long")
 	}
 	if c.ListenPort < 1 || c.ListenPort > 65535 {
-		return errors.New("listen_port 必须在 1–65535 之间")
+		return errors.New("listen_port must be between 1 and 65535")
 	}
 	if strings.ContainsAny(c.ListenHost, " \t\r\n/") {
-		return errors.New("listen_host 不能包含空白或 /")
+		return errors.New("listen_host cannot contain whitespace or /")
 	}
 	if strings.Contains(c.ListenHost, ":") && net.ParseIP(c.ListenHost) == nil {
-		return errors.New("listen_host 只填 IP 或主机名，端口请写到 listen_port")
+		return errors.New("listen_host takes an IP or hostname only; put the port in listen_port")
 	}
 	switch c.LogLevel {
 	case "debug", "info", "warn", "error":
 	default:
-		return fmt.Errorf("log_level 必须是 debug/info/warn/error 之一")
+		return fmt.Errorf("log_level must be one of debug/info/warn/error")
 	}
 	if c.SessionHours < 1 || c.SessionHours > 8760 {
-		return errors.New("session_hours 必须在 1–8760 之间")
+		return errors.New("session_hours must be between 1 and 8760")
 	}
 	if c.MaxUploadMB < 1 || c.MaxUploadMB > 1<<20 {
-		return errors.New("max_upload_mb 必须在 1–1048576 之间")
+		return errors.New("max_upload_mb must be between 1 and 1048576")
 	}
 	if len(c.Rules) > maxRules {
-		return fmt.Errorf("规则数量超过上限 %d", maxRules)
+		return fmt.Errorf("too many rules (limit %d)", maxRules)
 	}
 	rules := make([]Rule, 0, len(c.Rules))
 	for i := range c.Rules {
@@ -123,7 +123,7 @@ func validateConfig(c *Config) error {
 			r.Mode = modeLock
 		}
 		if r.Path == "" {
-			return fmt.Errorf("规则 #%d: 路径为空", i+1)
+			return fmt.Errorf("rule #%d: path is empty", i+1)
 		}
 		// Older configs used a trailing /** to mean "this directory and below".
 		// That is now the default behaviour of a directory lock.
@@ -135,14 +135,14 @@ func validateConfig(c *Config) error {
 		}
 		abs, err := normalizeAbsPath(r.Path)
 		if err != nil {
-			return fmt.Errorf("规则 #%d: %w", i+1, err)
+			return fmt.Errorf("rule #%d: %w", i+1, err)
 		}
 		r.Path = abs
 		if !isExactPath(r.Path) {
-			return fmt.Errorf("规则 #%d: 路径不能包含通配符", i+1)
+			return fmt.Errorf("rule #%d: path cannot contain wildcards", i+1)
 		}
 		if len(r.Password) > 512 {
-			return fmt.Errorf("规则 #%d: 密码过长", i+1)
+			return fmt.Errorf("rule #%d: password is too long", i+1)
 		}
 		rules = append(rules, r)
 	}
@@ -185,10 +185,10 @@ func loadConfig(path string) (cfg *Config, created bool, err error) {
 	}
 	cfg = &Config{}
 	if err := decodeConfig(data, cfg); err != nil {
-		return nil, false, fmt.Errorf("解析配置失败: %w", err)
+		return nil, false, fmt.Errorf("cannot parse the config: %w", err)
 	}
 	if err := validateConfig(cfg); err != nil {
-		return nil, false, fmt.Errorf("配置校验失败: %w", err)
+		return nil, false, fmt.Errorf("config validation failed: %w", err)
 	}
 	return cfg, false, nil
 }
@@ -240,7 +240,7 @@ func decodeConfig(data []byte, cfg *Config) error {
 	add("insecure_cookie", w.InsecureCookie != nil)
 	add("rules", w.Rules != nil)
 	if len(missing) > 0 {
-		return fmt.Errorf("配置缺少字段: %s", strings.Join(missing, ", "))
+		return fmt.Errorf("config is missing fields: %s", strings.Join(missing, ", "))
 	}
 
 	cfg.SiteName = *w.SiteName
@@ -263,7 +263,7 @@ func decodeConfig(data []byte, cfg *Config) error {
 func ensureEOF(dec *json.Decoder) error {
 	var extra any
 	if err := dec.Decode(&extra); err != io.EOF {
-		return errors.New("配置文件中存在多余内容")
+		return errors.New("the config file has trailing content")
 	}
 	return nil
 }
@@ -292,7 +292,7 @@ func saveConfig(path string, c *Config) error {
 	}
 	if old, err := os.ReadFile(path); err == nil {
 		if err := os.WriteFile(path+".bak", old, 0o600); err != nil {
-			slog.Warn("备份配置失败", "err", err)
+			slog.Warn("failed to back up the config", "err", err)
 		}
 	}
 	tmp := path + ".tmp"
@@ -325,7 +325,7 @@ func saveConfig(path string, c *Config) error {
 func ensureSecret(path string) ([]byte, error) {
 	if data, err := os.ReadFile(path); err == nil {
 		if len(data) != 32 {
-			return nil, fmt.Errorf("%s 长度异常（%d 字节），期望 32 字节", path, len(data))
+			return nil, fmt.Errorf("%s has an unexpected length (%d bytes), expected 32", path, len(data))
 		}
 		return data, nil
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -390,19 +390,19 @@ func (cm *configManager) reloadLocked() {
 	}
 	cfg, _, err := loadConfig(cm.path)
 	if err != nil {
-		slog.Error("配置文件重新加载失败，继续使用旧配置", "err", err)
+		slog.Error("config reload failed; keeping the previous config", "err", err)
 		cm.mtime = st.ModTime()
 		cm.size = st.Size()
 		return
 	}
 	rules, err := compileRules(cfg.Rules, cm.secret)
 	if err != nil {
-		slog.Error("规则编译失败，继续使用旧配置", "err", err)
+		slog.Error("rule compilation failed; keeping the previous config", "err", err)
 		return
 	}
 	if cm.cfg != nil {
 		if cm.cfg.ListenHost != cfg.ListenHost || cm.cfg.ListenPort != cfg.ListenPort {
-			slog.Warn("listen_host / listen_port 已修改，需要重启后生效",
+			slog.Warn("listen_host / listen_port changed; a restart is required to take effect",
 				"running", cm.cfg.ListenAddr(), "configured", cfg.ListenAddr())
 		}
 	}
@@ -411,7 +411,7 @@ func (cm *configManager) reloadLocked() {
 	cm.mtime = st.ModTime()
 	cm.size = st.Size()
 	appLogLevel.Set(parseLogLevel(cfg.LogLevel))
-	slog.Info("配置已重新加载", "rules", len(rules))
+	slog.Info("config reloaded", "rules", len(rules))
 }
 
 // Current returns a snapshot of the config and compiled rules.

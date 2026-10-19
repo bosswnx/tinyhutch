@@ -48,14 +48,14 @@ type passwordChangeRequest struct {
 
 func validPassword(p string) error {
 	if len(p) < 6 {
-		return errors.New("新密码至少 6 个字符")
+		return errors.New("the new password must be at least 6 characters")
 	}
 	if len(p) > 128 {
-		return errors.New("新密码过长")
+		return errors.New("the new password is too long")
 	}
 	for _, r := range p {
 		if r < 0x20 || r == 0x7f {
-			return errors.New("新密码包含控制字符")
+			return errors.New("the new password contains control characters")
 		}
 	}
 	return nil
@@ -70,7 +70,7 @@ func (s *server) handleAdminPassword(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r, cfg.TrustProxy)
 	if allowed, wait := s.limiter.allow(ip); !allowed {
 		w.Header().Set("Retry-After", strconvItoa(int(wait.Seconds())+1))
-		writeError(w, 429, "rate_limited", "尝试过多，请稍后再试")
+		writeError(w, 429, "rate_limited", "too many attempts, try again later")
 		return
 	}
 	var req passwordChangeRequest
@@ -80,13 +80,13 @@ func (s *server) handleAdminPassword(w http.ResponseWriter, r *http.Request) {
 	if subtle.ConstantTimeCompare([]byte(req.CurrentPassword), []byte(cfg.AdminPassword)) != 1 {
 		remaining, banned := s.limiter.fail(ip)
 		if banned > 0 {
-			writeError(w, 429, "rate_limited", "尝试过多，请稍后再试")
+			writeError(w, 429, "rate_limited", "too many attempts, try again later")
 			return
 		}
 		writeJSON(w, 401, unlockFailure{
 			Error:     "forbidden",
 			Code:      "forbidden",
-			Message:   "当前密码错误",
+			Message:   "the current password is incorrect",
 			Remaining: remaining,
 		})
 		return
@@ -101,8 +101,8 @@ func (s *server) handleAdminPassword(w http.ResponseWriter, r *http.Request) {
 		c.AdminPassword = req.NewPassword
 		return nil
 	}); err != nil {
-		slog.Error("保存管理密码失败", "err", err)
-		writeError(w, 500, "internal", "配置保存失败")
+		slog.Error("failed to save the admin password", "err", err)
+		writeError(w, 500, "internal", "failed to save the config")
 		return
 	}
 	s.limiter.reset(ip)
@@ -190,7 +190,7 @@ func (s *server) handleRuleTest(w http.ResponseWriter, r *http.Request) {
 	}
 	rel, err := cleanRelPath(req.Path)
 	if err != nil {
-		writeError(w, 400, "bad_path", "路径不合法")
+		writeError(w, 400, "bad_path", "invalid path")
 		return
 	}
 	abs := absPath(rel)
@@ -235,17 +235,17 @@ func (s *server) handleLogoutAll(w http.ResponseWriter, r *http.Request) {
 	}
 	secret := make([]byte, 32)
 	if _, err := rand.Read(secret); err != nil {
-		writeError(w, 500, "internal", "生成密钥失败")
+		writeError(w, 500, "internal", "failed to generate the secret")
 		return
 	}
 	tmp := s.secretPath + ".tmp"
 	if err := os.WriteFile(tmp, secret, 0o600); err != nil {
-		writeError(w, 500, "internal", "写入密钥失败")
+		writeError(w, 500, "internal", "failed to write the secret")
 		return
 	}
 	if err := os.Rename(tmp, s.secretPath); err != nil {
 		os.Remove(tmp)
-		writeError(w, 500, "internal", "写入密钥失败")
+		writeError(w, 500, "internal", "failed to write the secret")
 		return
 	}
 	_ = os.Chmod(s.secretPath, 0o600)

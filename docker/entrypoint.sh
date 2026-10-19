@@ -31,7 +31,7 @@ die() {
 require_uint() {
 	# $1 = variable name, $2 = value
 	case "$2" in
-	'' | *[!0-9]*) die "$1 必须是非负整数，当前值: '$2'" ;;
+	'' | *[!0-9]*) die "$1 must be a non-negative integer, got: '$2'" ;;
 	esac
 }
 
@@ -40,7 +40,7 @@ to_bool() {
 	case "$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')" in
 	1 | true | yes | on) printf 'true' ;;
 	0 | false | no | off | '') printf 'false' ;;
-	*) die "$1 必须是 true 或 false，当前值: '$2'" ;;
+	*) die "$1 must be true or false, got: '$2'" ;;
 	esac
 }
 
@@ -49,13 +49,13 @@ mkdir -p "$DATA_DIR"
 if [ ! -e "$CONFIG_FILE" ]; then
 	require_uint TINYHUTCH_LISTEN_PORT "$LISTEN_PORT"
 	[ "$LISTEN_PORT" -ge 1 ] && [ "$LISTEN_PORT" -le 65535 ] ||
-		die "TINYHUTCH_LISTEN_PORT 必须在 1-65535 之间，当前值: $LISTEN_PORT"
+		die "TINYHUTCH_LISTEN_PORT must be between 1 and 65535, got: $LISTEN_PORT"
 	require_uint TINYHUTCH_SESSION_HOURS "$SESSION_HOURS"
 	[ "$SESSION_HOURS" -ge 1 ] && [ "$SESSION_HOURS" -le 8760 ] ||
-		die "TINYHUTCH_SESSION_HOURS 必须在 1-8760 之间，当前值: $SESSION_HOURS"
+		die "TINYHUTCH_SESSION_HOURS must be between 1 and 8760, got: $SESSION_HOURS"
 	require_uint TINYHUTCH_MAX_UPLOAD_MB "$MAX_UPLOAD_MB"
 	[ "$MAX_UPLOAD_MB" -ge 1 ] ||
-		die "TINYHUTCH_MAX_UPLOAD_MB 必须大于 0，当前值: $MAX_UPLOAD_MB"
+		die "TINYHUTCH_MAX_UPLOAD_MB must be greater than 0, got: $MAX_UPLOAD_MB"
 
 	SHOW_HIDDEN="$(to_bool TINYHUTCH_SHOW_HIDDEN "$SHOW_HIDDEN")"
 	TRUST_PROXY="$(to_bool TINYHUTCH_TRUST_PROXY "$TRUST_PROXY")"
@@ -63,11 +63,11 @@ if [ ! -e "$CONFIG_FILE" ]; then
 
 	case "$LOG_LEVEL" in
 	debug | info | warn | error) ;;
-	*) die "TINYHUTCH_LOG_LEVEL 必须是 debug/info/warn/error 之一，当前值: '$LOG_LEVEL'" ;;
+	*) die "TINYHUTCH_LOG_LEVEL must be one of debug/info/warn/error, got: '$LOG_LEVEL'" ;;
 	esac
 
 	printf '%s' "$RULES" | jq -e 'type == "array"' >/dev/null 2>&1 ||
-		die "TINYHUTCH_RULES 必须是 JSON 数组，例如: [{\"path\":\"/private\",\"password\":\"secret\"}]"
+		die "TINYHUTCH_RULES must be a JSON array, for example: [{\"path\":\"/private\",\"password\":\"secret\"}]"
 
 	# Generate a random 24-character password when the variable is not set at
 	# all. An explicitly empty value means "no admin password" (the app's own
@@ -109,12 +109,12 @@ if [ ! -e "$CONFIG_FILE" ]; then
 	chmod 0600 "$tmp"
 	mv "$tmp" "$CONFIG_FILE"
 
-	echo "TinyHutch: 首次启动，已生成配置文件 $CONFIG_FILE"
+	echo "TinyHutch: first start, generated config file $CONFIG_FILE"
 	if [ "$GENERATED_PASSWORD" -eq 1 ]; then
-		echo "TinyHutch: 已生成管理员密码: $ADMIN_PASSWORD"
-		echo "TinyHutch: 请妥善保存该密码；登录后可在 /admin 修改，或直接编辑 $CONFIG_FILE"
+		echo "TinyHutch: generated admin password: $ADMIN_PASSWORD"
+		echo "TinyHutch: keep this password safe; change it under /admin once you are logged in, or edit $CONFIG_FILE directly"
 	fi
-	echo "TinyHutch: 之后修改环境变量不会生效，请直接编辑 $CONFIG_FILE"
+	echo "TinyHutch: environment variables no longer apply; edit $CONFIG_FILE instead"
 fi
 
 # Running as root: make sure the data directory (and generated files) are

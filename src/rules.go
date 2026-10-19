@@ -141,23 +141,23 @@ func compileRules(rules []Rule, secret []byte) ([]compiledRule, error) {
 	for i, r := range rules {
 		abs, err := normalizeAbsPath(r.Path)
 		if err != nil {
-			return nil, fmt.Errorf("规则 #%d: %w", i+1, err)
+			return nil, fmt.Errorf("rule #%d: %w", i+1, err)
 		}
 		if abs != r.Path {
-			return nil, fmt.Errorf("规则 #%d: 路径未规范化，应为 %q", i+1, abs)
+			return nil, fmt.Errorf("rule #%d: path is not normalized; expected %q", i+1, abs)
 		}
 		if r.Mode != "" && r.Mode != modeLock {
-			return nil, fmt.Errorf("规则 #%d: 只支持上锁模式", i+1)
+			return nil, fmt.Errorf("rule #%d: only lock mode is supported", i+1)
 		}
 		if r.Password == "" {
-			return nil, fmt.Errorf("规则 #%d (%s): 请填写密码", i+1, r.Path)
+			return nil, fmt.Errorf("rule #%d (%s): a password is required", i+1, r.Path)
 		}
 		if !isExactPath(abs) {
-			return nil, fmt.Errorf("规则 #%d (%s): 路径不能包含通配符", i+1, r.Path)
+			return nil, fmt.Errorf("rule #%d (%s): path cannot contain wildcards", i+1, r.Path)
 		}
 		for j := range out {
 			if pathsOverlap(out[j].pattern, abs) {
-				return nil, fmt.Errorf("%w: 规则 #%d (%s) 与规则 #%d (%s) 重叠，上锁路径不能互相包含",
+				return nil, fmt.Errorf("%w: rule #%d (%s) overlaps rule #%d (%s); locked paths cannot contain each other",
 					errRuleOverlap, i+1, abs, j+1, out[j].pattern)
 			}
 		}

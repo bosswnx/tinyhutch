@@ -296,7 +296,7 @@ func (f *fileSystem) saveUpload(dir, name string, overwrite bool, maxBytes int64
 // cleanupTrash drops any undo trash left over from a previous run.
 func (f *fileSystem) cleanupTrash() {
 	if err := f.root.RemoveAll(trashDir); err != nil {
-		slog.Warn("清理回收站失败", "err", err)
+		slog.Warn("failed to clean up the trash", "err", err)
 	}
 }
 

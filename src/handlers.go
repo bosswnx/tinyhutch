@@ -91,7 +91,7 @@ func cacheStatic(h http.Handler) http.Handler {
 func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	data, err := embeddedStatic.ReadFile("static/index.html")
 	if err != nil {
-		writeError(w, 500, "internal", "页面加载失败")
+		writeError(w, 500, "internal", "failed to load the page")
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -102,7 +102,7 @@ func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
 func (s *server) handleAdminPage(w http.ResponseWriter, r *http.Request) {
 	data, err := embeddedStatic.ReadFile("static/admin.html")
 	if err != nil {
-		writeError(w, 500, "internal", "页面加载失败")
+		writeError(w, 500, "internal", "failed to load the page")
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -136,7 +136,7 @@ func (s *server) middleware(next http.Handler) http.Handler {
 			if rec := recover(); rec != nil {
 				slog.Error("panic", "err", rec, "path", r.URL.Path)
 				if sw.status == 0 {
-					writeError(sw, http.StatusInternalServerError, "internal", "服务端错误")
+					writeError(sw, http.StatusInternalServerError, "internal", "server error")
 				}
 			}
 			s.logRequest(sw, r, start)
@@ -144,13 +144,13 @@ func (s *server) middleware(next http.Handler) http.Handler {
 
 		if isUnsafeMethod(r.Method) {
 			if r.Header.Get("X-Requested-With") != "tinyhutch" {
-				writeError(sw, 403, "forbidden", "缺少请求头")
+				writeError(sw, 403, "forbidden", "missing request header")
 				return
 			}
 			if origin := r.Header.Get("Origin"); origin != "" {
 				u, err := url.Parse(origin)
 				if err != nil || !strings.EqualFold(u.Host, r.Host) {
-					writeError(sw, 403, "forbidden", "跨站请求被拒绝")
+					writeError(sw, 403, "forbidden", "cross-site request rejected")
 					return
 				}
 			}
@@ -198,7 +198,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, v any, max int64) bool {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
-		writeError(w, 400, "bad_request", "请求体不合法")
+		writeError(w, 400, "bad_request", "invalid request body")
 		return false
 	}
 	return true
@@ -221,7 +221,7 @@ func (s *server) canRead(sess *session, cfg *Config, eff Effective) bool {
 func (s *server) requireAdmin(w http.ResponseWriter, r *http.Request, cfg *Config) (*session, bool) {
 	sess := s.loadSession(r)
 	if !s.isAdmin(sess, cfg) {
-		writeError(w, 403, "forbidden", "需要管理员登录")
+		writeError(w, 403, "forbidden", "admin login required")
 		return nil, false
 	}
 	return sess, true
@@ -230,24 +230,24 @@ func (s *server) requireAdmin(w http.ResponseWriter, r *http.Request, cfg *Confi
 func fileError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, errBadPath):
-		writeError(w, 400, "bad_path", "路径不合法")
+		writeError(w, 400, "bad_path", "invalid path")
 	case errors.Is(err, errNotFound), errors.Is(err, fs.ErrNotExist):
-		writeError(w, 404, "not_found", "不存在")
+		writeError(w, 404, "not_found", "not found")
 	case errors.Is(err, errExists), errors.Is(err, fs.ErrExist):
-		writeError(w, 409, "exists", "同名文件或目录已存在")
+		writeError(w, 409, "exists", "a file or folder with that name already exists")
 	case errors.Is(err, errIsDir):
-		writeError(w, 409, "exists", "目标是目录")
+		writeError(w, 409, "exists", "the target is a directory")
 	case errors.Is(err, errTooLarge):
-		writeError(w, 413, "too_large", "超过上传上限")
+		writeError(w, 413, "too_large", "file exceeds the upload limit")
 	case errors.Is(err, syscall.ENOSPC):
-		writeError(w, 507, "no_space", "磁盘空间不足")
+		writeError(w, 507, "no_space", "not enough disk space")
 	case errors.Is(err, syscall.ENOTEMPTY):
-		writeError(w, 409, "exists", "目录非空")
+		writeError(w, 409, "exists", "the directory is not empty")
 	case errors.Is(err, syscall.EXDEV):
-		writeError(w, 409, "cross_device", "不能跨文件系统移动")
+		writeError(w, 409, "cross_device", "cannot move across filesystems")
 	default:
 		slog.Error("filesystem error", "err", err)
-		writeError(w, 500, "internal", "服务端错误")
+		writeError(w, 500, "internal", "server error")
 	}
 }
 
@@ -286,7 +286,7 @@ func (s *server) handleUnlock(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r, cfg.TrustProxy)
 	if ok, wait := s.limiter.allow(ip); !ok {
 		w.Header().Set("Retry-After", strconvItoa(int(wait.Seconds())+1))
-		writeError(w, 429, "rate_limited", "尝试过多，请稍后再试")
+		writeError(w, 429, "rate_limited", "too many attempts, try again later")
 		return
 	}
 	var req unlockRequest
@@ -295,7 +295,7 @@ func (s *server) handleUnlock(w http.ResponseWriter, r *http.Request) {
 	}
 	rel, err := cleanRelPath(req.Path)
 	if err != nil {
-		writeError(w, 400, "bad_path", "路径不合法")
+		writeError(w, 400, "bad_path", "invalid path")
 		return
 	}
 	abs := absPath(rel)
@@ -322,13 +322,13 @@ func (s *server) handleUnlock(w http.ResponseWriter, r *http.Request) {
 	remaining, banned := s.limiter.fail(ip)
 	if banned > 0 {
 		w.Header().Set("Retry-After", strconvItoa(int(limiterBan.Seconds())))
-		writeError(w, 429, "rate_limited", "尝试过多，请稍后再试")
+		writeError(w, 429, "rate_limited", "too many attempts, try again later")
 		return
 	}
 	writeJSON(w, 401, unlockFailure{
 		Error:     "locked",
 		Code:      "locked",
-		Message:   "密码错误",
+		Message:   "wrong password",
 		Remaining: remaining,
 	})
 }
@@ -364,7 +364,7 @@ func (s *server) handleList(w http.ResponseWriter, r *http.Request) {
 	sess := s.loadSession(r)
 	rel, err := cleanRelPath(r.URL.Query().Get("path"))
 	if err != nil {
-		writeError(w, 400, "bad_path", "路径不合法")
+		writeError(w, 400, "bad_path", "invalid path")
 		return
 	}
 	if err := s.files.guard(rel, cfg.ShowHidden, false); err != nil {
@@ -377,11 +377,11 @@ func (s *server) handleList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !info.IsDir() {
-		writeError(w, 400, "bad_path", "不是目录")
+		writeError(w, 400, "bad_path", "not a directory")
 		return
 	}
 	if eff := evaluate(rules, absPath(rel)); !s.canRead(sess, cfg, eff) {
-		writeError(w, 401, "locked", "该路径需要密码")
+		writeError(w, 401, "locked", "this path requires a password")
 		return
 	}
 	entries, truncated, err := s.files.list(rel, cfg.ShowHidden)
@@ -432,26 +432,26 @@ func (s *server) authorizeDownload(w http.ResponseWriter, r *http.Request, cfg *
 	}
 	pw := r.URL.Query().Get("password")
 	if pw == "" {
-		writeError(w, 401, "locked", "该文件需要密码")
+		writeError(w, 401, "locked", "this file requires a password")
 		return false
 	}
 	ip := clientIP(r, cfg.TrustProxy)
 	if ok, wait := s.limiter.allow(ip); !ok {
 		w.Header().Set("Retry-After", strconvItoa(int(wait.Seconds())+1))
-		writeError(w, 429, "rate_limited", "尝试过多，请稍后再试")
+		writeError(w, 429, "rate_limited", "too many attempts, try again later")
 		return false
 	}
 	if subtle.ConstantTimeCompare([]byte(pw), []byte(eff.Password)) != 1 {
 		remaining, banned := s.limiter.fail(ip)
 		if banned > 0 {
 			w.Header().Set("Retry-After", strconvItoa(int(limiterBan.Seconds())))
-			writeError(w, 429, "rate_limited", "尝试过多，请稍后再试")
+			writeError(w, 429, "rate_limited", "too many attempts, try again later")
 			return false
 		}
 		writeJSON(w, 401, unlockFailure{
 			Error:     "locked",
 			Code:      "locked",
-			Message:   "密码错误",
+			Message:   "wrong password",
 			Remaining: remaining,
 		})
 		return false
@@ -469,7 +469,7 @@ func (s *server) handleRulePassword(w http.ResponseWriter, r *http.Request) {
 	sess := s.loadSession(r)
 	rel, err := cleanRelPath(r.URL.Query().Get("path"))
 	if err != nil || rel == "" {
-		writeError(w, 400, "bad_path", "路径不合法")
+		writeError(w, 400, "bad_path", "invalid path")
 		return
 	}
 	if err := s.files.guard(rel, cfg.ShowHidden, false); err != nil {
@@ -478,7 +478,7 @@ func (s *server) handleRulePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	eff := evaluate(rules, absPath(rel))
 	if !s.canRead(sess, cfg, eff) {
-		writeError(w, 401, "locked", "该文件需要密码")
+		writeError(w, 401, "locked", "this file requires a password")
 		return
 	}
 	info, err := s.files.stat(rel)
@@ -487,7 +487,7 @@ func (s *server) handleRulePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if info.IsDir() || !info.Mode().IsRegular() {
-		writeError(w, 400, "bad_path", "不是文件")
+		writeError(w, 400, "bad_path", "not a file")
 		return
 	}
 	w.Header().Set("Cache-Control", "private, no-store")
@@ -499,7 +499,7 @@ func (s *server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	sess := s.loadSession(r)
 	rel, err := cleanRelPath(r.URL.Query().Get("path"))
 	if err != nil || rel == "" {
-		writeError(w, 400, "bad_path", "路径不合法")
+		writeError(w, 400, "bad_path", "invalid path")
 		return
 	}
 	if err := s.files.guard(rel, cfg.ShowHidden, false); err != nil {
@@ -516,7 +516,7 @@ func (s *server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 	if info.IsDir() || !info.Mode().IsRegular() {
-		writeError(w, 400, "bad_path", "不是文件")
+		writeError(w, 400, "bad_path", "not a file")
 		return
 	}
 	name := path.Base(rel)
@@ -603,7 +603,7 @@ func (s *server) handleStat(w http.ResponseWriter, r *http.Request) {
 	}
 	rels = compactRelPaths(rels)
 	if len(rels) == 0 {
-		writeError(w, 400, "bad_path", "没有可统计的路径")
+		writeError(w, 400, "bad_path", "no paths to measure")
 		return
 	}
 	files := 0
@@ -654,12 +654,12 @@ func (s *server) handleZip(w http.ResponseWriter, r *http.Request) {
 	cfg, _ := s.cm.Current()
 	sess := s.loadSession(r)
 	if !s.isAdmin(sess, cfg) {
-		writeError(w, 403, "forbidden", "需要管理员登录")
+		writeError(w, 403, "forbidden", "admin login required")
 		return
 	}
 	raw := r.URL.Query()["path"]
 	if len(raw) == 0 {
-		writeError(w, 400, "bad_path", "没有选择文件")
+		writeError(w, 400, "bad_path", "no files selected")
 		return
 	}
 	seen := make(map[string]bool)
@@ -677,7 +677,7 @@ func (s *server) handleZip(w http.ResponseWriter, r *http.Request) {
 	}
 	items = compactRelPaths(items)
 	if len(items) == 0 {
-		writeError(w, 404, "not_found", "没有可下载的文件")
+		writeError(w, 404, "not_found", "no files to download")
 		return
 	}
 
@@ -742,12 +742,12 @@ func (s *server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	rel, err := cleanRelPath(r.URL.Query().Get("path"))
 	if err != nil {
-		writeError(w, 400, "bad_path", "路径不合法")
+		writeError(w, 400, "bad_path", "invalid path")
 		return
 	}
 	name := r.URL.Query().Get("name")
 	if err := validateName(name, cfg.ShowHidden); err != nil {
-		writeError(w, 400, "bad_name", "文件名不合法")
+		writeError(w, 400, "bad_name", "invalid file name")
 		return
 	}
 	if err := s.files.guard(rel, cfg.ShowHidden, false); err != nil {
@@ -760,7 +760,7 @@ func (s *server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !dirInfo.IsDir() {
-		writeError(w, 400, "bad_path", "目标不是目录")
+		writeError(w, 400, "bad_path", "the target is not a directory")
 		return
 	}
 	target := joinRel(rel, name)
@@ -770,7 +770,7 @@ func (s *server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	maxBytes := cfg.maxUploadBytes()
 	if r.ContentLength > maxBytes {
-		writeError(w, 413, "too_large", "超过上传上限")
+		writeError(w, 413, "too_large", "file exceeds the upload limit")
 		return
 	}
 	overwrite := r.URL.Query().Get("overwrite") == "1"
@@ -818,12 +818,12 @@ func (s *server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := validateName(req.Name, cfg.ShowHidden); err != nil {
-		writeError(w, 400, "bad_name", "目录名不合法")
+		writeError(w, 400, "bad_name", "invalid folder name")
 		return
 	}
 	rel, err := cleanRelPath(req.Path)
 	if err != nil {
-		writeError(w, 400, "bad_path", "路径不合法")
+		writeError(w, 400, "bad_path", "invalid path")
 		return
 	}
 	if err := s.files.guard(rel, cfg.ShowHidden, false); err != nil {
@@ -836,7 +836,7 @@ func (s *server) handleMkdir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.files.stat(target); err == nil {
-		writeError(w, 409, "exists", "同名文件或目录已存在")
+		writeError(w, 409, "exists", "a file or folder with that name already exists")
 		return
 	}
 	if err := s.files.mkdir(target); err != nil {
@@ -856,12 +856,12 @@ func (s *server) handleRename(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := validateName(req.Name, cfg.ShowHidden); err != nil {
-		writeError(w, 400, "bad_name", "名称不合法")
+		writeError(w, 400, "bad_name", "invalid name")
 		return
 	}
 	from, err := cleanRelPath(req.Path)
 	if err != nil || from == "" {
-		writeError(w, 400, "bad_path", "路径不合法")
+		writeError(w, 400, "bad_path", "invalid path")
 		return
 	}
 	if err := s.files.guard(from, cfg.ShowHidden, false); err != nil {
@@ -874,11 +874,11 @@ func (s *server) handleRename(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := s.files.stat(to); err == nil {
-		writeError(w, 409, "exists", "同名文件或目录已存在")
+		writeError(w, 409, "exists", "a file or folder with that name already exists")
 		return
 	}
 	if err := s.validateRulesAfterRename(from, to); err != nil {
-		writeError(w, 409, "rules_move_conflict", "移动后会导致上锁路径重叠，请先调整规则")
+		writeError(w, 409, "rules_move_conflict", "this move would create overlapping lock rules; adjust the rules first")
 		return
 	}
 	if err := s.files.rename(from, to); err != nil {
@@ -927,12 +927,12 @@ func (s *server) handleMove(w http.ResponseWriter, r *http.Request) {
 	}
 	from, err := cleanRelPath(req.From)
 	if err != nil || from == "" {
-		writeError(w, 400, "bad_path", "路径不合法")
+		writeError(w, 400, "bad_path", "invalid path")
 		return
 	}
 	to, err := cleanRelPath(req.To)
 	if err != nil || to == "" {
-		writeError(w, 400, "bad_path", "路径不合法")
+		writeError(w, 400, "bad_path", "invalid path")
 		return
 	}
 	if from == to {
@@ -953,7 +953,7 @@ func (s *server) handleMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if info.IsDir() && strings.HasPrefix(to, from+"/") {
-		writeError(w, 400, "bad_path", "不能移动到自身或子目录")
+		writeError(w, 400, "bad_path", "cannot move into itself or a subfolder")
 		return
 	}
 	parent := parentOf(to)
@@ -963,15 +963,15 @@ func (s *server) handleMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !parentInfo.IsDir() {
-		writeError(w, 400, "bad_path", "目标不是目录")
+		writeError(w, 400, "bad_path", "the target is not a directory")
 		return
 	}
 	if _, err := s.files.stat(to); err == nil {
-		writeError(w, 409, "exists", "同名文件或目录已存在")
+		writeError(w, 409, "exists", "a file or folder with that name already exists")
 		return
 	}
 	if err := s.validateRulesAfterRename(from, to); err != nil {
-		writeError(w, 409, "rules_move_conflict", "移动后会导致上锁路径重叠，请先调整规则")
+		writeError(w, 409, "rules_move_conflict", "this move would create overlapping lock rules; adjust the rules first")
 		return
 	}
 	if err := s.files.rename(from, to); err != nil {
@@ -996,7 +996,7 @@ func (s *server) handleDelete(w http.ResponseWriter, r *http.Request) {
 		raw = []string{req.Path}
 	}
 	if len(raw) == 0 {
-		writeError(w, 400, "bad_path", "没有选择文件")
+		writeError(w, 400, "bad_path", "no files selected")
 		return
 	}
 	seen := make(map[string]bool)
@@ -1015,7 +1015,7 @@ func (s *server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	rels = compactRelPaths(rels)
 	if len(rels) == 0 {
-		writeError(w, 400, "bad_path", "没有可删除的路径")
+		writeError(w, 400, "bad_path", "no paths to delete")
 		return
 	}
 
@@ -1025,7 +1025,7 @@ func (s *server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	token, err := randomHex(8)
 	if err != nil {
-		writeError(w, 500, "internal", "生成撤销令牌失败")
+		writeError(w, 500, "internal", "failed to generate the undo token")
 		return
 	}
 	sess := path.Join(trashDir, token)
@@ -1057,7 +1057,7 @@ func (s *server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		rollback()
 		s.restoreRules(rules)
-		writeError(w, 500, "internal", "保存撤销信息失败")
+		writeError(w, 500, "internal", "failed to save the undo information")
 		return
 	}
 	if err := s.files.root.WriteFile(path.Join(sess, "manifest.json"), data, 0o600); err != nil {
@@ -1083,18 +1083,18 @@ func (s *server) handleUndoDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !validTrashToken(req.Token) {
-		writeError(w, 400, "bad_path", "撤销令牌不合法")
+		writeError(w, 400, "bad_path", "invalid undo token")
 		return
 	}
 	sess := path.Join(trashDir, req.Token)
 	data, err := s.files.root.ReadFile(path.Join(sess, "manifest.json"))
 	if err != nil {
-		writeError(w, 404, "not_found", "撤销已过期")
+		writeError(w, 404, "not_found", "undo has expired")
 		return
 	}
 	var m trashManifest
 	if err := json.Unmarshal(data, &m); err != nil {
-		writeError(w, 500, "internal", "撤销信息损坏")
+		writeError(w, 500, "internal", "undo information is corrupted")
 		return
 	}
 	for _, e := range m.Entries {
@@ -1103,7 +1103,7 @@ func (s *server) handleUndoDelete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if _, err := s.files.root.Lstat(e.Original); err == nil {
-			writeError(w, 409, "exists", "原位置已有同名文件")
+			writeError(w, 409, "exists", "a file with that name is already in the original location")
 			return
 		}
 		if err := s.files.root.Rename(path.Join(sess, e.Trash), e.Original); err != nil {
@@ -1145,7 +1145,7 @@ func (s *server) takeExactRules(rels []string) []Rule {
 		return nil
 	})
 	if err != nil {
-		slog.Warn("删除路径时清理规则失败", "err", err)
+		slog.Warn("failed to clean up rules while deleting a path", "err", err)
 		return nil
 	}
 	return removed
@@ -1181,7 +1181,7 @@ func (s *server) restoreRules(rules []Rule) {
 		return nil
 	})
 	if err != nil {
-		slog.Warn("撤销删除时恢复规则失败", "err", err)
+		slog.Warn("failed to restore rules while undoing a delete", "err", err)
 	}
 }
 
@@ -1215,7 +1215,7 @@ func (s *server) syncRulesRename(from, to string) {
 		return nil
 	})
 	if err != nil {
-		slog.Warn("同步重命名后的规则失败", "err", err)
+		slog.Warn("failed to sync rules after rename", "err", err)
 	}
 }
 
@@ -1234,7 +1234,7 @@ func (s *server) syncRulesDelete(rel string) {
 		return nil
 	})
 	if err != nil {
-		slog.Warn("清理删除路径的规则失败", "err", err)
+		slog.Warn("failed to remove rules for a deleted path", "err", err)
 	}
 }
 

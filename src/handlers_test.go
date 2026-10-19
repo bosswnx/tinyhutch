@@ -406,7 +406,7 @@ func TestEmptyAdminPassword(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Anonymous visitors are still read-only until they click 登录.
+	// Anonymous visitors are still read-only until they log in.
 	if resp, _ := e.anon("PUT", "/api/file?path=/&name=x.txt", "x"); resp.StatusCode != 403 {
 		t.Fatalf("anon write: %d, want 403", resp.StatusCode)
 	}
